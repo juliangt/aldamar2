@@ -17,35 +17,35 @@
 ## Tareas
 
 ### Audio
-- [ ] Cerrar la composición del **jingle** (~2 s, 8-bit) del sello (aparece
+- [x] Cerrar la composición del **jingle** (~2 s, 8-bit) del sello (aparece
       al abrir y en cada cierre, victoria o desgracia).
-- [ ] Set de SFX sintetizados: texto de diálogo (tick suave), confirmar,
+- [x] Set de SFX sintetizados: texto de diálogo (tick suave), confirmar,
       moneda, golpe, daño recibido, curación, nivel, victoria, derrota,
       secreto. Volumen maestro + toggle en opciones (desde el menú pausa).
-- [ ] (Opcional, si el presupuesto de tiempo lo permite) ambiente mínimo por
+- [x] (Opcional, si el presupuesto de tiempo lo permite) ambiente mínimo por
       bioma: un pad de 2–3 notas en loop muy bajo. Nada de assets externos.
 
 ### Calibración (cierra el Apéndice A de la maestra)
-- [ ] Validar contra el Python original: fórmula del comando especial,
+- [x] Validar contra el Python original: fórmula del comando especial,
       `cada_n_turnos`, ticks de veneno, huida, cuerno, respawn de enemigos,
       precio mínimo con Lengua de mercado. Documentar divergencias decididas.
-- [ ] Pasada de XP: con las XP totales disponibles de cada aventura (sumando
+- [x] Pasada de XP: con las XP totales disponibles de cada aventura (sumando
       respawns razonables), ajustar la curva de niveles (30×n) y los +PV/+ataque.
-- [ ] Pasada por dificultad: «paseo» debe permitir ver la historia con
+- [x] Pasada por dificultad: «paseo» debe permitir ver la historia con
       comodidad; «ceniza» debe doler en los jefes (Custodio, Viuda, Morvath).
-- [ ] Crear **`docs/playtesting.md`**: protocolo (rutas de prueba por
+- [x] Crear **`docs/playtesting.md`**: protocolo (rutas de prueba por
       aventura, decisiones a cubrir, semillas de secretos, qué medir:
       muertes, grieta final, nivel alcanzado, monedas sobrantes) y plantilla
       de reporte.
 
 ### Rendimiento y móvil
-- [ ] Perfilado en dispositivo real gama media: 60 fps con 3 enemigos +
+- [x] Perfilado en dispositivo real gama media: 60 fps con 3 enemigos +
       compañeros; cargar mapas sin saltos (precarga en fade).
-- [ ] Atlas único de sprites si hay muchos frames sueltos; texto del HUD sin
+- [x] Atlas único de sprites si hay muchos frames sueltos; texto del HUD sin
       re-render por frame (solo al cambiar).
-- [ ] Accesibilidad táctil: botones ≥ 48 px, nada bajo safe areas, d-pad
+- [x] Accesibilidad táctil: botones ≥ 48 px, nada bajo safe areas, d-pad
       cómodo en pantallas pequeñas; probar con una mano.
-- [ ] Ciclo de vida móvil: pausa al pasar a segundo plano
+- [x] Ciclo de vida móvil: pausa al pasar a segundo plano
       (`visibilitychange`), sin audio fantasma, reanudar sin perder estado.
 
 ### Build y entrega
