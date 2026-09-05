@@ -212,6 +212,16 @@ export class UiScene extends Phaser.Scene {
   }
 
   setPausa(activada) {
+    if (activada) {
+      const dif = Datos.dificultad(partida.dificultad)
+      const difNombre = dif?.nombre || partida.dificultad || 'Normal'
+      this.pausaTexto.setText(
+        `PAUSA\n\n` +
+        `Semilla: ${partida.semilla}\n` +
+        `Dificultad: ${difNombre}\n\n` +
+        `toca para seguir`
+      )
+    }
     this.pausaVelo.setVisible(activada)
     this.pausaTexto.setVisible(activada)
     this.menuTactil.setVisible(!activada)

@@ -4,6 +4,7 @@
 import Datos from './Datos.js'
 import Balance from './Balance.js'
 import Rng from './Rng.js'
+import Legacy from './Legacy.js'
 
 const CLAVE_SAVE = (aventuraId) => `aldamar:save:${aventuraId}`
 
@@ -64,6 +65,7 @@ export class GameState {
     this.entrada = null
     this.semilla =
       semilla !== undefined ? Rng.semillaDe(semilla) : (Date.now() >>> 0)
+    Legacy.importar(this)
     return this
   }
 
