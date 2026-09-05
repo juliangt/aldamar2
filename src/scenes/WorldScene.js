@@ -6,6 +6,7 @@
 import Phaser from 'phaser'
 import Datos from '../core/Datos.js'
 import EventEngine from '../core/EventEngine.js'
+import ValidadorMapa from '../core/ValidadorMapa.js'
 import { aplicarRes } from '../core/resolucion.js'
 import { partida } from '../core/partida.js'
 import { extraerReclutar, extraerComprar } from '../core/Texto.js'
@@ -742,23 +743,9 @@ export class WorldScene extends Phaser.Scene {
 
   // Compara lo que declara el JSON del lugar con lo que pintó el mapa.
   validarObjetos(mapa, lugar) {
-    const aviso = (msg) => console.warn(`[mapa:${this.lugarId}] ${msg}`)
-    for (const nombreCapa of ['npcs', 'enemigos', 'objetos', 'monedas', 'eventos']) {
-      if (!mapa.getObjectLayer(nombreCapa)) aviso(`falta la capa «${nombreCapa}»`)
-    }
-    const pintados = (capa) =>
-      new Set((mapa.getObjectLayer(capa)?.objects || []).map((o) => o.name))
-    const npcPintados = pintados('npcs')
-    const objPintados = pintados('objetos')
-    for (const id of Object.keys(lugar.npcs || {}))
-      if (!npcPintados.has(id)) aviso(`NPC declarado sin pintar en el mapa: ${id}`)
-    for (const id of lugar.objetos || [])
-      if (!objPintados.has(id)) aviso(`objeto declarado sin pintar en el mapa: ${id}`)
-    if (lugar.monedas && !(mapa.getObjectLayer('monedas')?.objects || []).length)
-      aviso(`monedas declaradas (${lugar.monedas}) sin pintar en el mapa`)
-    for (const [dir, destino] of Object.entries(lugar.salidas || {})) {
-      if (!Datos.lugar(this.aventura, destino))
-        aviso(`la salida «${dir}» apunta a un lugar desconocido: ${destino}`)
+    const avisos = ValidadorMapa.validar(this.lugarId, lugar, mapa, this.aventura)
+    for (const msg of avisos) {
+      console.warn(`[mapa:${this.lugarId}] ${msg}`)
     }
   }
 
