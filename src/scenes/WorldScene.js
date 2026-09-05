@@ -642,19 +642,36 @@ export class WorldScene extends Phaser.Scene {
     }
   }
 
-  // ---------------------------------------------------- Secretos v1: Cuervo
+  // ---------------------------------------------------- Secretos (Fase G)
   crearCuervoExterior(mapa) {
+    return this.crearSecretoExterior(mapa)
+  }
+
+  crearSecretoExterior(mapa) {
     this.cuervo = null
-    const sec = Datos.aventura(this.aventura)?.secretos?.cuervo
+    const secretos = Datos.aventura(this.aventura)?.secretos
+    if (!secretos) return
+    const [tipoSecreto, sec] = Object.entries(secretos)[0] || []
     if (!sec) return
 
-    const exteriores = ['vegaverde', 'molino', 'puente', 'bosque', 'cienagas', 'yerma']
-    if (!exteriores.includes(this.lugarId)) return
+    const lugaresPorSecreto = {
+      cuervo: ['vegaverde', 'molino', 'puente', 'bosque', 'cienagas', 'yerma'],
+      abejas: ['colmenar', 'ejido', 'lavadero'],
+      gaviota: ['vado', 'calzada', 'faro', 'esteros', 'cauce', 'salinas'],
+      campanilla: ['refugio', 'aguja_pies', 'aguja_cima'],
+    }
+
+    const permitidos = lugaresPorSecreto[tipoSecreto] || []
+    if (!permitidos.includes(this.lugarId)) return
+
+    if (tipoSecreto === 'campanilla' && !partida.tieneFlag('campanilla') && !partida.inventario.includes('campanilla')) {
+      return
+    }
 
     const x = Math.min(mapa.widthInPixels - 48, Math.max(48, Math.round(mapa.widthInPixels / 2 + 32)))
     const y = 48
 
-    const tex = this.texturaCuervo()
+    const tex = this.texturaSecreto(tipoSecreto)
     const sprite = this.add
       .sprite(x, y, tex)
       .setDepth(25)
@@ -670,40 +687,76 @@ export class WorldScene extends Phaser.Scene {
       .setVisible(false)
       .setDepth(26)
 
-    this.cuervo = { sprite, burbuja, x, y }
-    sprite.on('pointerdown', () => this.interactuarCuervo())
+    this.cuervo = { tipo: tipoSecreto, sprite, burbuja, x, y, sec }
+    sprite.on('pointerdown', () => this.interactuarSecreto())
   }
 
-  texturaCuervo() {
-    const clave = 'secreto:cuervo'
+  texturaSecreto(tipo) {
+    const clave = `secreto:${tipo}`
     if (this.textures.exists(clave)) return clave
     return this.texturaCanvas(clave, 16, 16, (g) => {
-      g.fillStyle = '#181822'
-      g.fillRect(5, 5, 6, 6) // cuerpo
-      g.fillRect(7, 2, 4, 4) // cabeza
-      g.fillRect(11, 4, 3, 2) // pico
-      g.fillRect(3, 7, 4, 4) // ala
-      g.fillRect(6, 11, 2, 3) // patas
-      g.fillStyle = partida.semilla === 42 ? '#ffffff' : '#e0c04a' // ojo plateado si semilla 42
-      g.fillRect(9, 3, 1, 1)
+      if (tipo === 'cuervo') {
+        g.fillStyle = '#181822'
+        g.fillRect(5, 5, 6, 6)
+        g.fillRect(7, 2, 4, 4)
+        g.fillRect(11, 4, 3, 2)
+        g.fillRect(3, 7, 4, 4)
+        g.fillRect(6, 11, 2, 3)
+        g.fillStyle = partida.semilla === 42 ? '#ffffff' : '#e0c04a'
+        g.fillRect(9, 3, 1, 1)
+      } else if (tipo === 'abejas') {
+        g.fillStyle = partida.semilla === 20 ? '#ffe080' : '#d8a020'
+        g.fillRect(5, 6, 6, 5)
+        g.fillStyle = '#111111'
+        g.fillRect(7, 6, 2, 5)
+        g.fillStyle = '#e8f0ff'
+        g.fillRect(4, 3, 4, 3)
+        g.fillRect(8, 3, 4, 3)
+      } else if (tipo === 'gaviota') {
+        g.fillStyle = '#f0f4f8'
+        g.fillRect(4, 5, 8, 5)
+        g.fillRect(8, 2, 4, 4)
+        g.fillStyle = '#708090'
+        g.fillRect(2, 7, 5, 3)
+        g.fillStyle = '#e0a020'
+        g.fillRect(12, 4, 3, 2)
+        g.fillStyle = partida.semilla === 40 ? '#00e0ff' : '#111111'
+        g.fillRect(10, 3, 1, 1)
+      } else if (tipo === 'campanilla') {
+        g.fillStyle = partida.semilla === 100 ? '#f0d060' : '#a87830'
+        g.fillRect(6, 4, 4, 3)
+        g.fillRect(4, 7, 8, 6)
+        g.fillRect(3, 12, 10, 2)
+        g.fillStyle = '#4a2a10'
+        g.fillRect(7, 13, 2, 2)
+      }
     })
   }
 
-  async interactuarCuervo() {
-    const sec = Datos.aventura(this.aventura)?.secretos?.cuervo
-    if (!sec) return
+  texturaCuervo() {
+    return this.texturaSecreto('cuervo')
+  }
 
+  async interactuarSecreto() {
+    if (!this.cuervo) return
+    const { tipo, sec } = this.cuervo
     let texto = ''
-    if (partida.semilla === 42 && sec.semillas?.['42']) {
-      texto = sec.semillas['42']
+    const semKey = String(partida.semilla)
+    if (sec.semillas?.[semKey]) {
+      texto = sec.semillas[semKey]
     } else {
       partida.npcVistos = partida.npcVistos || {}
-      const idx = (partida.npcVistos['secreto:cuervo'] || 0) % sec.textos.length
+      const keyVisto = `secreto:${tipo}`
+      const idx = (partida.npcVistos[keyVisto] || 0) % sec.textos.length
       texto = sec.textos[idx]
-      partida.npcVistos['secreto:cuervo'] = idx + 1
+      partida.npcVistos[keyVisto] = idx + 1
       partida.guardar()
     }
     await this.ui.decir(texto)
+  }
+
+  interactuarCuervo() {
+    return this.interactuarSecreto()
   }
 
   // Entrada al lugar: descripción (primera visita) + eventos de entrada (narrar,

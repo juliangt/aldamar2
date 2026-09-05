@@ -132,6 +132,44 @@ describe('Combate', () => {
     expect(c2.resultado).toBe('caida')
   })
 
+  it('comando marea en Sal y Ceniza calcula dano_base 10 + 3*floor(g/10)', () => {
+    const pSal = new GameState()
+    pSal.nuevaPartida('sal_y_ceniza', 'bruna', 'camino')
+    pSal.grieta = 20
+    const c = new Combate(pSal, ['cangrejo'], new Rng(1))
+    c.iniciarRonda()
+    const ev = c.accionHeroe('marea', { objetivoIdx: 0 })
+    // dano = 10 + 3 * 2 = 16. Cangrejo tiene vida 14, muere.
+    const danoEv = ev.find((e) => e.tipo === 'dano')
+    expect(danoEv.cantidad).toBe(16)
+    expect(ev.some((e) => e.tipo === 'muerte')).toBe(true)
+    // coste corrupción 12 * 1 en camino = 12. Grieta = 20 + 12 = 32.
+    expect(pSal.grieta).toBe(32)
+  })
+
+  it('comando eco en Aguja sin Sombra calcula dano_base 12 + 3*floor(g/10)', () => {
+    const pAguja = new GameState()
+    pAguja.nuevaPartida('aguja_sin_sombra', 'renco', 'camino')
+    pAguja.grieta = 10
+    const c = new Combate(pAguja, ['sombra'], new Rng(1))
+    c.iniciarRonda()
+    const ev = c.accionHeroe('eco', { objetivoIdx: 0 })
+    // dano = 12 + 3 * 1 = 15. Sombra tiene vida 12, muere.
+    const danoEv = ev.find((e) => e.tipo === 'dano')
+    expect(danoEv.cantidad).toBe(15)
+    expect(ev.some((e) => e.tipo === 'muerte')).toBe(true)
+    // coste 12 * 1 = 12. Grieta = 10 + 12 = 22.
+    expect(pAguja.grieta).toBe(22)
+  })
+
+  it('en Brasa de Vegaverde no hay comando especial y devuelve vacio', () => {
+    const pBrasa = new GameState()
+    pBrasa.nuevaPartida('brasa_vegaverde', 'enebro', 'camino')
+    const c = new Combate(pBrasa, ['mirlo'], new Rng(1))
+    c.iniciarRonda()
+    expect(c.comandoEspecial(0)).toEqual([])
+  })
+
   it('el cuerno dispersa criaturas menores pero no a jefes', () => {
     p.inventario.push('cuerno_valoria')
     const c = new Combate(p, ['lobo', 'trasgo'], new Rng(1))

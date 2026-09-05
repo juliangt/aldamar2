@@ -166,7 +166,8 @@ export class Combate {
   accionHeroe(accion, { objetivoIdx = 0, itemId = null } = {}) {
     if (this.estado === 'fin') return []
     if (accion === 'atacar') return this.ataqueHeroe(objetivoIdx)
-    if (accion === 'corazon') return this.comandoCorazon(objetivoIdx)
+    const esp = Datos.aventura(this.aventura)?.comando_especial
+    if (accion === 'corazon' || accion === 'especial' || (esp && accion === esp.comando)) return this.comandoEspecial(objetivoIdx)
     if (accion === 'cuerno') return this.usarCuerno()
     if (accion === 'huida') return this.intentarHuida()
     if (accion === 'objeto') return this.usarObjeto(itemId)
@@ -187,9 +188,10 @@ export class Combate {
     return ev
   }
 
-  // Comando especial `corazon` (§5.3): dano_base + dano_por_corrupcion ×
+  // Comando especial dinámico (§5.3): dano_base + dano_por_corrupcion ×
   // ⌊grieta/10⌋; cada uso sube la grieta corrupcion_coste × Balance.
-  comandoCorazon(objetivoIdx) {
+  // Soporta corazon (Corazón), marea (Sal), eco (Aguja) o null (Brasa).
+  comandoEspecial(objetivoIdx) {
     const ev = []
     const esp = Datos.aventura(this.aventura).comando_especial
     const efecto = esp?.efecto
@@ -216,6 +218,10 @@ export class Combate {
     }
     ev.push(...this.chequearVictoria())
     return ev
+  }
+
+  comandoCorazon(objetivoIdx) {
+    return this.comandoEspecial(objetivoIdx)
   }
 
   // Cuerno de Valoria: victoria inmediata si TODOS los vivos son menores

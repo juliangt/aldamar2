@@ -47,7 +47,7 @@ export class BattleScene extends Phaser.Scene {
     this.crearSprites()
     this.crearLog()
     this.crearBotones()
-    this.crearCuervoBatalla()
+    this.crearSecretoBatalla()
 
     this.input.keyboard.on('keydown-SPACE', () => this.acelerarLog())
     this.input.keyboard.on('keydown-ENTER', () => this.acelerarLog())
@@ -56,12 +56,26 @@ export class BattleScene extends Phaser.Scene {
     this.flow()
   }
 
-  crearCuervoBatalla() {
-    const sec = Datos.aventura(this.combate.aventura)?.secretos?.cuervo
-    if (!sec) return
+  crearSecretoBatalla() {
+    const secretos = Datos.aventura(this.combate.aventura)?.secretos
+    if (!secretos) return
+    const [clave, sec] = Object.entries(secretos)[0] || []
+    if (!sec || !sec.texto_combate) return
+
+    if (clave === 'campanilla' && !partida.tieneFlag('campanilla') && !partida.inventario.includes('campanilla')) {
+      return
+    }
+
+    const iconos = {
+      cuervo: '𓅃',
+      abejas: '𓆤',
+      gaviota: '𓅪',
+      campanilla: '𓏢',
+    }
+    const icono = iconos[clave] || '✧'
     const { width } = VISTA
-    const cuervo = this.add
-      .text(width - 20, 16, '𓅃', {
+    const btn = this.add
+      .text(width - 20, 16, icono, {
         fontSize: '11px',
         color: '#888899',
       })
@@ -69,9 +83,13 @@ export class BattleScene extends Phaser.Scene {
       .setDepth(3100)
       .setInteractive({ useHandCursor: true })
 
-    cuervo.on('pointerdown', () => {
+    btn.on('pointerdown', () => {
       this.log(sec.texto_combate)
     })
+  }
+
+  crearCuervoBatalla() {
+    return this.crearSecretoBatalla()
   }
 
   // ------------------------------------------------------------ fondo/sprites
@@ -225,10 +243,14 @@ export class BattleScene extends Phaser.Scene {
   crearBotones() {
     const { width } = VISTA
     this.botones = {}
+    const c = this.combate
+    const esp = Datos.aventura(c.aventura).comando_especial
+    const cmdEsp = esp?.comando || 'especial'
+    const etiquetaEsp = esp?.comando ? esp.comando.toUpperCase() : 'ESPECIAL'
     const acciones = [
       ['atacar', 'ATACAR'],
       ['objeto', 'OBJETO'],
-      ['corazon', 'CORAZÓN'],
+      ['especial', etiquetaEsp],
       ['cuerno', 'CUERNO'],
       ['huida', 'HUIDA'],
     ]
@@ -243,7 +265,7 @@ export class BattleScene extends Phaser.Scene {
         .text(bx, this.logY - 12, etiqueta, { fontFamily: FUENTE, fontSize: '7px', color: '#e0c04a' })
         .setOrigin(0.5)
         .setDepth(3101)
-      zona.on('pointerdown', () => this.accion(id))
+      zona.on('pointerdown', () => this.accion(id === 'especial' ? cmdEsp : id))
       this.botones[id] = { zona, caja, texto }
     })
     this.refrescarBotones()
@@ -252,12 +274,12 @@ export class BattleScene extends Phaser.Scene {
   refrescarBotones() {
     const c = this.combate
     const esp = Datos.aventura(c.aventura).comando_especial
-    const tieneCorazon = esp && esp.comando === 'corazon' // corazon_ceniza
+    const tieneEspecial = !!(esp && esp.comando) // corazon, marea, eco (Brasa null)
     const tieneCuerno = partida.cantidad('cuerno_valoria') > 0
     const visibles = {
       atacar: true,
       objeto: partida.itemsApilados().some(({ id }) => Datos.item(c.aventura, id)?.tipo === 'consumible'),
-      corazon: !!tieneCorazon,
+      especial: tieneEspecial,
       cuerno: tieneCuerno,
       huida: true,
     }
