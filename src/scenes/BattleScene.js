@@ -33,6 +33,7 @@ export class BattleScene extends Phaser.Scene {
 
   create() {
     const { width, height } = this.scale
+    this.scene.bringToTop() // dibujar sobre Mundo/Ui/Arena
     this.cameras.main.setBackgroundColor('#101418')
 
     this.combate = new Combate(partida, this.datosEntrada.enemigos)
