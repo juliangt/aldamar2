@@ -181,6 +181,35 @@ export class GameState {
     this.guardar()
   }
 
+  // ------------------------------------------------------------ grieta (Fase E)
+
+  // Suma corrupción × Balance (la resta usa el multiplicador de la misma
+  // forma, en negativo). Devuelve {delta, grieta, caida} — caída a true
+  // cuando la grieta alcanza 100 por cualquier vía.
+  sumarGrieta(puntos) {
+    const delta =
+      puntos >= 0
+        ? Balance.corrupcion(puntos, this.dificultad)
+        : -Balance.corrupcion(-puntos, this.dificultad)
+    const antes = this.grieta
+    this.grieta = Math.max(0, Math.min(100, this.grieta + delta))
+    this.guardar()
+    return { delta: this.grieta - antes, grieta: this.grieta, caida: this.grieta >= 100 }
+  }
+
+  // Cura total del grupo (ritual, curar_grupo): vida al máximo y corrupción
+  // negativa × Balance si se pasa.
+  curarGrupo(corrupcion = 0) {
+    this.stats.vida = this.stats.vidaMax
+    this.companerosSalud = this.companerosSalud || {}
+    for (const id of this.companeros) {
+      const r = Datos.recluta(this.aventura, id)
+      const max = Balance.statJugador(r?.vida || 0, 'vida_jugador', this.dificultad)
+      this.companerosSalud[id] = { vida: max, vidaMax: max }
+    }
+    return corrupcion ? this.sumarGrieta(corrupcion) : { delta: 0, grieta: this.grieta, caida: false }
+  }
+
   // Daño de prueba (dev, Fase C): sin combate aún, para probar consumibles.
   danarDev(n = 5) {
     this.stats.vida = Math.max(1, this.stats.vida - n)
