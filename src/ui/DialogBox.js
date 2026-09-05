@@ -6,6 +6,7 @@
 import Phaser from 'phaser'
 import Texto from '../core/Texto.js'
 import { VISTA } from '../core/resolucion.js'
+import { audio8 } from '../core/Audio8.js'
 
 const FUENTE = '"Press Start 2P", monospace'
 const CAR_POR_SG = 30
@@ -94,6 +95,7 @@ export class DialogBox {
         .text(bx, by, etiqueta, { fontFamily: FUENTE, fontSize: '8px', color: '#e0c04a' })
         .setOrigin(0.5)
       zona.on('pointerdown', () => {
+        audio8.sfx('confirmar')
         this.limpiarBotones()
         this.cerrar()
         this.resolver && this.resolver(i)
@@ -117,6 +119,10 @@ export class DialogBox {
       loop: true,
       callback: () => {
         this.chars++
+        const ch = this.paginas[this.pagina]?.[this.chars - 1]
+        if (ch && ch !== ' ' && ch !== '\n' && this.chars % 2 === 0) {
+          audio8.sfx('dialogo')
+        }
         this.texto.setText(this.paginas[this.pagina].slice(0, this.chars))
         if (this.chars >= this.paginas[this.pagina].length) this.finPagina()
       },

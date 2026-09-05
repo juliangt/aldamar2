@@ -12,6 +12,7 @@ import { partida } from '../core/partida.js'
 import { extraerReclutar, extraerComprar } from '../core/Texto.js'
 import heroePng from '../assets/heroe.png'
 import { crearTexturaHeroe, crearTexturaEnemigo, crearTexturaNpc } from '../core/Sprites.js'
+import { audio8, obtenerBioma } from '../core/Audio8.js'
 
 const VELOCIDAD = 110
 const LADO_OPUESTO = { N: 'S', S: 'N', E: 'O', O: 'E' }
@@ -106,6 +107,9 @@ export class WorldScene extends Phaser.Scene {
     })
 
     this.registrarWake()
+
+    const bioma = obtenerBioma(this.lugarId)
+    audio8.iniciarAmbiente(bioma)
   }
 
   // ------------------------------------------------------------------ jugador
@@ -220,6 +224,8 @@ export class WorldScene extends Phaser.Scene {
     }
 
     this.transicionando = true
+    audio8.sfx('confirmar')
+    audio8.detenerAmbiente(true)
     partida.lugar = hacia
     partida.entrada = LADO_OPUESTO[dir] || null
     partida.guardar() // autosave (stub de Fase A)
@@ -348,6 +354,7 @@ export class WorldScene extends Phaser.Scene {
   recoger(pickup) {
     if (pickup.recogido || this.ui?.modal) return
     pickup.recogido = true
+    audio8.sfx('moneda')
     partida.recogidos[pickup.claveRecogido] = true
     if (pickup.tipo === 'moneda') {
       partida.monedas += pickup.valor
@@ -422,6 +429,8 @@ export class WorldScene extends Phaser.Scene {
     const enemigosBatalla = esSecuencial ? [vivos[0].id] : vivos.map((e) => e.id)
     this.enemigoEnCurso = esSecuencial ? vivos[0] : null
 
+    audio8.detenerAmbiente(true)
+
     this.scene.sleep('Ui')
     this.scene.sleep('World')
     this.scene.launch('Battle', {
@@ -436,6 +445,7 @@ export class WorldScene extends Phaser.Scene {
   registrarWake() {
     this.events.on(Phaser.Scenes.Events.WAKE, (sys, data) => {
       this.transicionando = false
+      audio8.iniciarAmbiente(obtenerBioma(this.lugarId))
       this.scene.wake('Ui')
       this.ui?.refrescarHud()
       if (!data || !data.resultado) return
@@ -755,6 +765,7 @@ export class WorldScene extends Phaser.Scene {
 
   async interactuarSecreto() {
     if (!this.cuervo) return
+    audio8.sfx('secreto')
     const { tipo, sec } = this.cuervo
     let texto = ''
     const semKey = String(partida.semilla)

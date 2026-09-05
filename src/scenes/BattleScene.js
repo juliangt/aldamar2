@@ -13,6 +13,7 @@ import Texto from '../core/Texto.js'
 import heroePng from '../assets/heroe.png'
 import { VISTA, aplicarRes } from '../core/resolucion.js'
 import { BIOMAS_TONOS, crearTexturaHeroe, crearTexturaEnemigo } from '../core/Sprites.js'
+import { audio8 } from '../core/Audio8.js'
 
 const FUENTE = '"Press Start 2P", monospace'
 const PALETA_ENEMIGO = { lobo: '#5a5a6a', espectro: '#8a9ab0', trasgo: '#7a8a4a', lobero: '#6a5a4a', capitan: '#9a6a5a', custodio: '#b0c0c8' }
@@ -527,6 +528,11 @@ export class BattleScene extends Phaser.Scene {
   fxGolpe(actor, cantidad) {
     const s = actor._sprite
     if (!s) return
+    if (actor.tipo === 'heroe') {
+      audio8.sfx('dano')
+    } else {
+      audio8.sfx('golpe')
+    }
     // Lunge del atacante lo maneja el llamador; aquí shake + número flotante.
     this.cameras.main.shake(90, 0.004)
     const n = this.add
@@ -544,6 +550,7 @@ export class BattleScene extends Phaser.Scene {
   fxCura(actor, cantidad) {
     const s = actor._sprite
     if (!s) return
+    audio8.sfx('curacion')
     const n = this.add
       .text(s.x, s.y - s.displayHeight - 4, `+${cantidad}`, {
         fontFamily: FUENTE,
@@ -569,20 +576,25 @@ export class BattleScene extends Phaser.Scene {
     const c = this.combate
     if (c.resultado === 'victoria') {
       const res = c.aplicarResultado()
+      audio8.sfx('victoria')
       await this.linea('Has vencido.')
       if (res.xp) await this.linea(`Ganas ${res.xp} de experiencia.`)
-      for (let i = 0; i < res.subidasNivel; i++)
+      for (let i = 0; i < res.subidasNivel; i++) {
+        audio8.sfx('nivel')
         await this.linea('¡Subes de nivel! +5 PV maximos' + (partida.nivel % 2 === 0 ? ' y +1 ataque.' : '.'))
+      }
       await this.acabar('victoria')
     } else if (c.resultado === 'huida') {
       c.aplicarResultado()
       await this.acabar('huida')
     } else if (c.resultado === 'derrota') {
       c.aplicarResultado()
+      audio8.sfx('derrota')
       await this.linea('La vista se llena de ceniza…')
       await this.acabar('derrota')
     } else if (c.resultado === 'caida') {
       c.aplicarResultado()
+      audio8.sfx('derrota')
       await this.linea('La grieta se abre del todo.')
       await this.acabar('caida')
     }

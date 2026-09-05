@@ -5,6 +5,7 @@
 import PanelUI, { FUENTE } from './PanelUI.js'
 import Datos from '../core/Datos.js'
 import { partida } from '../core/partida.js'
+import { audio8 } from '../core/Audio8.js'
 
 const ALTO_FILA = 15
 
@@ -61,6 +62,7 @@ export class TiendaUI extends PanelUI {
         .zone(this.x + this.ancho / 2, y + ALTO_FILA / 2, this.ancho - 24, ALTO_FILA)
         .setInteractive()
       zona.on('pointerdown', () => {
+        audio8.sfx('confirmar')
         this.seleccion = sel ? null : id
         this.pintar()
       })
@@ -120,6 +122,7 @@ export class TiendaUI extends PanelUI {
       this.onToast('No te alcanza para eso.')
       return
     }
+    audio8.sfx('moneda')
     this.onToast(`(Compras: ${dato.nombre}. Quedan ${partida.monedas} monedas.)`)
     this.onCambio()
     this.pintar()

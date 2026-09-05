@@ -7,6 +7,7 @@
 import Phaser from 'phaser'
 import Texto from '../core/Texto.js'
 import { VISTA } from '../core/resolucion.js'
+import { audio8 } from '../core/Audio8.js'
 
 const FUENTE = '"Press Start 2P", monospace'
 
@@ -72,6 +73,7 @@ export class SelectorOpciones {
               .setOrigin(0.5)
           : null
         zona.on('pointerdown', () => {
+          audio8.sfx('confirmar')
           this.cerrar()
           resolve(op)
         })

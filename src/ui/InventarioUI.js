@@ -5,6 +5,7 @@
 import PanelUI, { FUENTE } from './PanelUI.js'
 import Datos from '../core/Datos.js'
 import { partida } from '../core/partida.js'
+import { audio8 } from '../core/Audio8.js'
 
 const ALTO_FILA = 14
 const TIPO_ETIQUETA = {
@@ -67,6 +68,7 @@ export class InventarioUI extends PanelUI {
         this.seleccion === id ? '#e0c04a' : '#e8e8e8'
       )
       linea.on('pointerdown', () => {
+        audio8.sfx('confirmar')
         this.seleccion = this.seleccion === id ? null : id
         this.pintar()
       })
@@ -130,9 +132,11 @@ export class InventarioUI extends PanelUI {
     if (dato.tipo === 'consumible') {
       const res = partida.usarItem(id)
       if (!res) return
+      audio8.sfx('curacion')
       if (res.texto) this.onToast(res.texto)
       else this.onToast(`(+${res.cura} PV)`)
     } else if (dato.tipo === 'arma' || dato.tipo === 'armadura') {
+      audio8.sfx('confirmar')
       partida.equipar(id)
       this.onToast(`Equipas: ${dato.nombre} (+${dato.bonus})`)
     }
