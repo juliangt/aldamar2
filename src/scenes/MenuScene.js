@@ -1,75 +1,395 @@
-// Menú (stub de Fase 0): título + arranque de la partida piloto. La Fase F
-// le da contenido real (selección de aventura/héroe/dificultad).
+// MenuScene — menú principal de Aldamar (§8 de la spec maestra y Fase F).
+// Selección de las 4 aventuras, estado (nueva/continuar/completada),
+// panel de legado persistente y arranque/continuación de partidas.
 
 import Phaser from 'phaser'
+import Datos from '../core/Datos.js'
+import Legacy from '../core/Legacy.js'
+import GameState from '../core/GameState.js'
 import { partida } from '../core/partida.js'
 import { VISTA, aplicarRes } from '../core/resolucion.js'
+
+const FUENTE = '"Press Start 2P", monospace'
+
+const MINI_SELLO_MENU = [
+  '  .--.    |  ',
+  ' ( oo )  _|_ ',
+  '_/\\__/\\_  |  ',
+  ' |(<>)|  /|\\ ',
+]
+
+const NUMEROS_ROMANOS = ['I', 'II', 'III', 'IV']
 
 export class MenuScene extends Phaser.Scene {
   constructor() {
     super('Menu')
   }
 
+  init() {
+    this.indiceAventura = 0
+    this.mostrarPanelLegado = false
+  }
+
   create() {
     aplicarRes(this)
+    this.cameras.main.setBackgroundColor('#000000')
 
+    this.aventuras = Datos.orden
+    this.raiz = this.add.container(0, 0)
+    this.renderizarVista()
+  }
+
+  renderizarVista() {
+    this.raiz.removeAll(true)
+    if (this.mostrarPanelLegado) {
+      this.dibujarPanelLegado()
+    } else {
+      this.dibujarMenuPrincipal()
+    }
+  }
+
+  dibujarMenuPrincipal() {
     const { width, height } = VISTA
-    const fuente = '"Press Start 2P", monospace'
+    const avActual = this.aventuras[this.indiceAventura]
+    const totalAv = this.aventuras.length
+    const legado = Legacy.cargar()
 
-    this.add
-      .text(width / 2, height / 2 - 30, 'ALDAMAR', {
-        fontFamily: fuente,
-        fontSize: '24px',
+    const claveAv = Object.keys(Datos.aventuras).find(
+      (k) => Datos.aventuras[k].orden === avActual.orden
+    )
+    const saveExistente = GameState.restaurar(claveAv)
+    const finalCompletado = legado.finales[claveAv]
+
+    // ------------------------------------------------ Cabecera (Sello + Título)
+    const miniSello = this.add
+      .text(width / 2 - 90, 18, MINI_SELLO_MENU.join('\n'), {
+        fontFamily: FUENTE,
+        fontSize: '6px',
+        color: '#888888',
+        align: 'center',
+      })
+      .setOrigin(0.5, 0)
+
+    const titulo = this.add
+      .text(width / 2 + 10, 22, 'ALDAMAR', {
+        fontFamily: FUENTE,
+        fontSize: '18px',
         color: '#ffffff',
       })
-      .setOrigin(0.5)
+      .setOrigin(0.5, 0)
 
-    this.add
-      .text(width / 2, height / 2 + 10, 'Próximamente', {
-        fontFamily: fuente,
-        fontSize: '10px',
-        color: '#909090',
+    const subtitulo = this.add
+      .text(width / 2 + 10, 44, 'CRÓNICAS DE LA CENIZA', {
+        fontFamily: FUENTE,
+        fontSize: '6px',
+        color: '#707070',
       })
-      .setOrigin(0.5)
+      .setOrigin(0.5, 0)
 
-    // Entrada provisional de Fase A: empezar la partida piloto.
-    const jugar = this.add
-      .text(width / 2, height - 40, '▶ JUGAR', {
-        fontFamily: fuente,
-        fontSize: '10px',
+    // Botón Panel de Legado (esquina superior derecha)
+    const tieneBanderas = legado.juramento || legado.grieta || legado.heroes.length > 0
+    const btnLegado = this.add
+      .text(width - 12, 12, tieneBanderas ? '❖ LEGADO (!)' : '❖ LEGADO', {
+        fontFamily: FUENTE,
+        fontSize: '7px',
+        color: tieneBanderas ? '#e0c04a' : '#888888',
+      })
+      .setOrigin(1, 0)
+      .setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => {
+        this.mostrarPanelLegado = true
+        this.renderizarVista()
+      })
+
+    // ------------------------------------------------ Navegador de Aventuras
+    const navY = 66
+    const navIzq = this.add
+      .text(width / 2 - 140, navY, '◄', { fontFamily: FUENTE, fontSize: '10px', color: '#ffffff' })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => {
+        this.indiceAventura = (this.indiceAventura - 1 + totalAv) % totalAv
+        this.renderizarVista()
+      })
+
+    const ordenRomano = NUMEROS_ROMANOS[this.indiceAventura] || String(this.indiceAventura + 1)
+    const etiquetaRecomendada = this.indiceAventura === 0 ? ' · (RECOMENDADA)' : ''
+    const navTxt = this.add
+      .text(width / 2, navY, `CAMPAÑA ${ordenRomano}${etiquetaRecomendada}`, {
+        fontFamily: FUENTE,
+        fontSize: '8px',
         color: '#e0c04a',
       })
       .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true })
-    jugar.on('pointerover', () => jugar.setScale(1.1))
-    jugar.on('pointerout', () => jugar.setScale(1))
-    jugar.on('pointerdown', () => this.empezar())
 
-    // Entrada oculta de Fase D: arena de pruebas (solo dev).
-    this.add
-      .text(8, height - 12, '≡', {
-        fontFamily: fuente,
-        fontSize: '8px',
-        color: '#555555',
+    const navDer = this.add
+      .text(width / 2 + 140, navY, '►', { fontFamily: FUENTE, fontSize: '10px', color: '#ffffff' })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => {
+        this.indiceAventura = (this.indiceAventura + 1) % totalAv
+        this.renderizarVista()
       })
+
+    // ------------------------------------------------ Tarjeta de la Aventura
+    const cardW = width - 44
+    const cardH = 138
+    const cardX = width / 2
+    const cardY = navY + 12 + cardH / 2
+
+    const fondoCard = this.add
+      .rectangle(cardX, cardY, cardW, cardH, 0x101016, 0.95)
+      .setStrokeStyle(1, 0x3a3a4c, 0.8)
+
+    const titAv = this.add
+      .text(cardX, cardY - 52, avActual.titulo.toUpperCase(), {
+        fontFamily: FUENTE,
+        fontSize: '10px',
+        color: '#ffffff',
+        align: 'center',
+        wordWrap: { width: cardW - 24 },
+      })
+      .setOrigin(0.5, 0)
+
+    const descAv = this.add
+      .text(cardX, cardY - 34, avActual.descripcion || '', {
+        fontFamily: FUENTE,
+        fontSize: '6px',
+        color: '#a0a0a8',
+        align: 'center',
+        wordWrap: { width: cardW - 32 },
+        lineSpacing: 3,
+      })
+      .setOrigin(0.5, 0)
+
+    // Estado de la aventura
+    let estadoColor = '#888888'
+    let estadoTexto = 'ESTADO: NUEVA AVENTURA'
+    if (finalCompletado) {
+      estadoColor = '#e0c04a'
+      estadoTexto = `✔ COMPLETADA: ${finalCompletado.toUpperCase()}`
+    } else if (saveExistente) {
+      estadoColor = '#9ad09a'
+      const lugarNom = Datos.lugar(claveAv, saveExistente.lugar)?.nombre || saveExistente.lugar
+      estadoTexto = `● PARTIDA EN CURSO: ${saveExistente.nombre} en ${lugarNom}`
+    }
+
+    const txtEstado = this.add
+      .text(cardX, cardY + 12, estadoTexto, {
+        fontFamily: FUENTE,
+        fontSize: '7px',
+        color: estadoColor,
+        align: 'center',
+      })
+      .setOrigin(0.5)
+
+    // Botones de acción
+    const elementosBotones = []
+    if (saveExistente) {
+      const btnContinuar = this.add
+        .text(cardX - 60, cardY + 44, '▶ CONTINUAR', {
+          fontFamily: FUENTE,
+          fontSize: '8px',
+          color: '#e0c04a',
+        })
+        .setOrigin(0.5)
+        .setInteractive({ useHandCursor: true })
+        .on('pointerdown', () => this.continuarPartida(saveExistente))
+
+      this.tweens.add({
+        targets: btnContinuar,
+        alpha: 0.4,
+        duration: 600,
+        yoyo: true,
+        repeat: -1,
+      })
+
+      const btnNueva = this.add
+        .text(cardX + 60, cardY + 44, 'NUEVA PARTIDA', {
+          fontFamily: FUENTE,
+          fontSize: '7px',
+          color: '#909090',
+        })
+        .setOrigin(0.5)
+        .setInteractive({ useHandCursor: true })
+        .on('pointerdown', () => this.empezarNueva(claveAv))
+
+      elementosBotones.push(btnContinuar, btnNueva)
+    } else {
+      const btnEmpezar = this.add
+        .text(cardX, cardY + 44, '▶ JUGAR AVENTURA', {
+          fontFamily: FUENTE,
+          fontSize: '8px',
+          color: '#e0c04a',
+        })
+        .setOrigin(0.5)
+        .setInteractive({ useHandCursor: true })
+        .on('pointerdown', () => this.empezarNueva(claveAv))
+
+      this.tweens.add({
+        targets: btnEmpezar,
+        alpha: 0.4,
+        duration: 600,
+        yoyo: true,
+        repeat: -1,
+      })
+
+      elementosBotones.push(btnEmpezar)
+    }
+
+    // Acceso oculto dev (Arena)
+    const btnArena = this.add
+      .text(10, height - 12, '≡', { fontFamily: FUENTE, fontSize: '8px', color: '#444444' })
       .setInteractive({ useHandCursor: true })
       .on('pointerdown', () => {
         if (!partida.aventura) partida.nuevaPartida('corazon_ceniza', 'tilo')
         this.scene.start('Arena')
       })
 
-    this.input.keyboard.once('keydown-ENTER', () => this.empezar())
+    this.raiz.add([
+      miniSello,
+      titulo,
+      subtitulo,
+      btnLegado,
+      navIzq,
+      navTxt,
+      navDer,
+      fondoCard,
+      titAv,
+      descAv,
+      txtEstado,
+      ...elementosBotones,
+      btnArena,
+    ])
+  }
 
-    // Prueba manual de multitouch (activePointers: 3).
-    this.input.on('pointerdown', (p) => {
-      console.log(`[input] puntero ${p.id()} en (${p.x | 0}, ${p.y | 0})`)
+  // --------------------------------------------------- Panel de Legado persistente
+
+  dibujarPanelLegado() {
+    const { width, height } = VISTA
+    const legado = Legacy.cargar()
+
+    const fondo = this.add.rectangle(width / 2, height / 2, width, height, 0x0a0a10, 0.98)
+
+    const titLegado = this.add
+      .text(width / 2, 20, '❖ EL LEGADO DE ALDAMAR', {
+        fontFamily: FUENTE,
+        fontSize: '10px',
+        color: '#e0c04a',
+      })
+      .setOrigin(0.5)
+
+    const subtit = this.add
+      .text(width / 2, 34, 'Memoria persistente transmitida entre cantares', {
+        fontFamily: FUENTE,
+        fontSize: '6px',
+        color: '#888888',
+      })
+      .setOrigin(0.5)
+
+    // Banderas activas
+    const juramentoTxt = `JURAMENTO DE LA ALIANZA : ${legado.juramento ? 'ACTIVO (ENCENDIDO)' : 'INACTIVO'}`
+    const grietaTxt = `MARCA DE LA GRIETA      : ${legado.grieta ? 'ACTIVA (ENCENDIDA)' : 'INACTIVA'}`
+
+    const txtJuramento = this.add.text(28, 54, juramentoTxt, {
+      fontFamily: FUENTE,
+      fontSize: '7px',
+      color: legado.juramento ? '#e0c04a' : '#666666',
+    })
+
+    const txtGrieta = this.add.text(28, 68, grietaTxt, {
+      fontFamily: FUENTE,
+      fontSize: '7px',
+      color: legado.grieta ? '#d04a4a' : '#666666',
+    })
+
+    // Héroes que culminaron
+    const txtTitHeroes = this.add.text(28, 88, 'HÉROES QUE CRUZARON LA CENIZA:', {
+      fontFamily: FUENTE,
+      fontSize: '7px',
+      color: '#9ad09a',
+    })
+
+    let infoHeroes = ''
+    if (legado.heroes.length === 0) {
+      infoHeroes = 'Ningún héroe ha culminado un cantar todavía.'
+    } else {
+      infoHeroes = legado.heroes
+        .slice(-4)
+        .map((h) => `• ${h.nombre} (${h.aventura}) — ${h.final}`)
+        .join('\n')
+    }
+
+    const txtHeroes = this.add.text(28, 102, infoHeroes, {
+      fontFamily: FUENTE,
+      fontSize: '6px',
+      color: '#cccccc',
+      lineSpacing: 4,
+    })
+
+    // Finales registrados
+    const txtTitFinales = this.add.text(28, 154, 'FINALES ALCANZADOS POR CAMPAÑA:', {
+      fontFamily: FUENTE,
+      fontSize: '7px',
+      color: '#8ab4f8',
+    })
+
+    const clavesAvs = Object.keys(Datos.aventuras)
+    const lineasFinales = clavesAvs.map((k) => {
+      const nombreAv = Datos.aventura(k).titulo
+      const fin = legado.finales[k]
+      return `• ${nombreAv}: ${fin ? fin.toUpperCase() : 'Pendiente'}`
+    })
+
+    const txtFinales = this.add.text(28, 168, lineasFinales.join('\n'), {
+      fontFamily: FUENTE,
+      fontSize: '6px',
+      color: '#aaaaaa',
+      lineSpacing: 3,
+    })
+
+    // Botón volver
+    const btnCerrar = this.add
+      .text(width / 2, height - 20, '◄ VOLVER AL MENÚ', {
+        fontFamily: FUENTE,
+        fontSize: '8px',
+        color: '#e0c04a',
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => {
+        this.mostrarPanelLegado = false
+        this.renderizarVista()
+      })
+
+    this.raiz.add([
+      fondo,
+      titLegado,
+      subtit,
+      txtJuramento,
+      txtGrieta,
+      txtTitHeroes,
+      txtHeroes,
+      txtTitFinales,
+      txtFinales,
+      btnCerrar,
+    ])
+  }
+
+  // --------------------------------------------------- Acciones de juego
+
+  continuarPartida(save) {
+    Object.assign(partida, save)
+    this.scene.stop('Ui')
+    this.scene.start('World', {
+      aventura: partida.aventura,
+      lugar: partida.lugar,
+      entrada: partida.entrada,
     })
   }
 
-  empezar() {
-    partida.nuevaPartida('corazon_ceniza', 'tilo')
-    this.scene.stop('Ui')
-    this.scene.start('World', { aventura: partida.aventura })
+  empezarNueva(claveAv) {
+    this.scene.start('Heroe', { aventura: claveAv })
   }
 }
 
