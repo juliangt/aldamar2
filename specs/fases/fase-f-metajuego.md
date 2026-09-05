@@ -17,24 +17,24 @@
 
 ## Tareas
 
-- [ ] `MenuScene`: título + sello pequeño; tarjetas de las 4 aventuras en
+- [x] `MenuScene`: título + sello pequeño; tarjetas de las 4 aventuras en
       `orden` con `titulo`, `descripcion` y estado (**nueva / continuar /
       completada + nombre del final**). Todas jugables desde el inicio (el
       hilo es de continuidad, no de prerrequisito); el orden recomendado se
       indica visualmente. Panel «Legado» con las banderas activas
       (juramento/grieta) y héroes que ya pasaron.
-- [ ] `HeroeScene`: para la aventura elegida, una tarjeta por `personajes`:
+- [x] `HeroeScene`: para la aventura elegida, una tarjeta por `personajes`:
       `nombre`, `titulo`, `presentacion` (rasgo incluido), PV/ataque/monedas/
       inventario inicial. Confirmar → **dificultad** (3 tarjetas con
       `nombre` + `descripcion`). Sin teclado: nombre por defecto = `nombre`;
       botón opcional «Cambiar nombre» con rejilla táctil A–Z (máx. 12).
       El prompt `texto_nombre` se muestra como sabor sobre el campo.
-- [ ] Sembrar `Rng` al empezar partida (aleatoria; mostrada en pausa).
-- [ ] `PrologoScene`: `prologo_base` de la aventura + `prologo_extra` del
+- [x] Sembrar `Rng` al empezar partida (aleatoria; mostrada en pausa).
+- [x] `PrologoScene`: `prologo_base` de la aventura + `prologo_extra` del
       héroe, typewriter, tap avanzar; si hay legado **y** la aventura
       `importa`, añadir `legado.texto_fama`. Al final, `presentacion` del
       héroe y arranque en `lugar_inicial`.
-- [ ] `EpilogoScene(tipo)`:
+- [x] `EpilogoScene(tipo)`:
       - `final`: opciones del evento `final` filtradas por `requiere_flag`;
         la base resuelve por grieta vs `umbral_tentado` (puro/tentado), las
         especiales usan su `epilogo` y nombre propio; añade
@@ -43,19 +43,19 @@
       - `muerte`: `epilogos.muerte` interpolando `{quien}` del héroe.
       - `caida`: `epilogos.caida`.
       - Cierre: sello + jingle → volver a `MenuScene`.
-- [ ] `Legacy.js`: al terminar sin muerte/caída, escribir
+- [x] `Legacy.js`: al terminar sin muerte/caída, escribir
       `legado.exporta` (mapear flag→bandera), añadir héroe/nombre a
       `heroes[]` y registrar `finales[aventura] = nombreFinal`
       *(interpretación: también con finales oscuros como la Sombra nueva —
       Apéndice A)*.
-- [ ] Importar legado al empezar aventura con `importa`: activa los eventos
+- [x] Importar legado al empezar aventura con `importa`: activa los eventos
       de cadena ya soportados por el `EventEngine` (`casa_llena`,
       `agua_que_cuenta`, `cadena_en_el_vado`, `hilo_gris`,
       `cadena_en_el_molino`, `hilos_en_el_agua`) y el `texto_fama` del prólogo.
-- [ ] Guardado: autosave ya existente + «Continuar» operativo (restaurar
+- [x] Guardado: autosave ya existente + «Continuar» operativo (restaurar
       `WorldScene` en `lugar`+`entrada` con todo el `GameState`); al terminar
       una aventura, borrar su save y refrescar el menú.
-- [ ] Secretos v1: sprite tocable del **cuervo** en exteriores de la campaña 1
+- [x] Secretos v1: sprite tocable del **cuervo** en exteriores de la campaña 1
       (`textos` rotatorios + `texto_combate` en batalla; semilla 42 especial).
 
 ## Resolución de `final` (algoritmo)
@@ -94,15 +94,15 @@ eventos de cadena activos por el legado.
 
 ## Criterios de aceptación
 
-- [ ] Los 6 finales alcanzables y con su epílogo correcto (texto, estilo,
+- [x] Los 6 finales alcanzables y con su epílogo correcto (texto, estilo,
       `{nombres}` de compañeros, `{quien}` en muerte).
-- [ ] Legado: victoria con `alianza`+`coronado` enciende exactamente esas
+- [x] Legado: victoria con `alianza`+`coronado` enciende exactamente esas
       banderas; una partida de Brasa posterior muestra fama y `casa_llena`.
-- [ ] Continuar restaura la partida exactamente (lugar, posición, grieta,
+- [x] Continuar restaura la partida exactamente (lugar, posición, grieta,
       inventario, flags, compañeros) tras cerrar el navegador.
-- [ ] Cambiar nombre funciona sin teclado del sistema y se interpola en todos
+- [x] Cambiar nombre funciona sin teclado del sistema y se interpola en todos
       los textos (`{nombre}`).
-- [ ] Sello + jingle al abrir y en cada cierre de aventura.
+- [x] Sello + jingle al abrir y en cada cierre de aventura.
 
 ## Fuera de alcance (van en...)
 
