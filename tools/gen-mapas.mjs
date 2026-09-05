@@ -1,5 +1,6 @@
-// gen-mapas.mjs — genera los mapas Tiled piloto de la Fase A:
-// public/maps/corazon_ceniza/{vegaverde,molino}.json (40×28, tiles 16×16).
+// gen-mapas.mjs — genera los 12 mapas Tiled de El Corazón de Ceniza (Fase E):
+// 40×28 tiles de 16×16.
+// Exporta a public/maps/corazon_ceniza/ y dist/maps/corazon_ceniza/
 // Ejecutar: node tools/gen-mapas.mjs
 
 import fs from 'node:fs'
@@ -57,15 +58,13 @@ function capaVacia(gid) {
   return new Array(W * H).fill(gid)
 }
 
-// Rectángulo relleno en una capa.
 function relleno(capa, x0, y0, w, h, gid) {
   for (let y = y0; y < y0 + h; y++)
     for (let x = x0; x < x0 + w; x++)
       if (x >= 0 && y >= 0 && x < W && y < H) capa[y * W + x] = gid
 }
 
-function bordesArboles(capa, huecos) {
-  // huecos: [{x0,x1,lado:'E'|'O'|'N'|'S'}] tramos sin árboles en un borde.
+function bordes(capa, huecos, gidBorde = G.arbol) {
   const enHueco = (x, y, lado) =>
     huecos.some((h) => {
       if (h.lado !== lado) return false
@@ -73,12 +72,12 @@ function bordesArboles(capa, huecos) {
       return v >= h.a && v < h.b
     })
   for (let x = 0; x < W; x++) {
-    if (!enHueco(x, 0, 'N')) capa[x] = G.arbol
-    if (!enHueco(x, H - 1, 'S')) capa[(H - 1) * W + x] = G.arbol
+    if (!enHueco(x, 0, 'N')) capa[x] = gidBorde
+    if (!enHueco(x, H - 1, 'S')) capa[(H - 1) * W + x] = gidBorde
   }
   for (let y = 0; y < H; y++) {
-    if (!enHueco(W - 1, y, 'E')) capa[y * W + W - 1] = G.arbol
-    if (!enHueco(0, y, 'O')) capa[y * W] = G.arbol
+    if (!enHueco(W - 1, y, 'E')) capa[y * W + W - 1] = gidBorde
+    if (!enHueco(0, y, 'O')) capa[y * W] = gidBorde
   }
 }
 
@@ -114,6 +113,7 @@ function objPunto(cap, x, y, props = {}) {
     _capa: cap,
   }
 }
+
 function objRect(cap, x, y, w, h, props = {}) {
   return {
     id: idObjeto++,
@@ -130,6 +130,7 @@ function objRect(cap, x, y, w, h, props = {}) {
     _capa: cap,
   }
 }
+
 function objProps(props) {
   return Object.entries(props).map(([name, value]) => ({
     name,
@@ -137,8 +138,8 @@ function objProps(props) {
     value,
   }))
 }
+
 function capaObjetos(nombre, objetos) {
-  const { _capa, ..._ } = {} // (los objetos llevan _capa; se quita abajo)
   return {
     draworder: 'topdown',
     id: 0,
@@ -172,7 +173,7 @@ const tileset = {
   tiles: tilesColision,
 }
 
-function exportar(ruta, capas) {
+function exportar(id, capas) {
   const mapa = {
     version: 1,
     tiledversion: '1.10.2',
@@ -189,15 +190,28 @@ function exportar(ruta, capas) {
     nextlayerid: capas.length + 1,
     nextobjectid: idObjeto,
   }
-  fs.mkdirSync(path.dirname(ruta), { recursive: true })
-  fs.writeFileSync(ruta, JSON.stringify(mapa))
-  console.log(`mapa → ${ruta}`)
+  const contenido = JSON.stringify(mapa)
+  for (const dir of ['public', 'dist']) {
+    const ruta = `${dir}/maps/corazon_ceniza/${id}.json`
+    fs.mkdirSync(path.dirname(ruta), { recursive: true })
+    fs.writeFileSync(ruta, contenido)
+  }
+  console.log(`mapa guardado → corazon_ceniza/${id}.json`)
+}
+
+function spawnsEstandar(cx = W / 2, cy = H / 2) {
+  return capaObjetos('spawns', [
+    objPunto('spawns', cx * 16, cy * 16, { nombre: 'centro' }),
+    objPunto('spawns', (W / 2) * 16, 1.5 * 16),
+    objPunto('spawns', (W / 2) * 16, (H - 1.5) * 16),
+    objPunto('spawns', (W - 1.5) * 16, (H / 2) * 16),
+    objPunto('spawns', 1.5 * 16, (H / 2) * 16),
+  ])
 }
 
 // ---------------------------------------------------------------------------
-// VEGAVERDE: huertos con cercados, estanque al norte, camino al este.
+// 1. VEGAVERDE: huertos, estanque, Belthar, provisiones, capa_gris, 6 monedas, descanso
 // ---------------------------------------------------------------------------
-
 function vegaverde() {
   const rng = mulberry32(1001)
   const suelo = capaVacia(0)
@@ -209,112 +223,84 @@ function vegaverde() {
     for (let x = 0; x < W; x++)
       suelo[y * W + x] = rng() < 0.18 ? G.cespedMata : G.cesped
 
-  // camino central que cruza de oeste a este (salida este → molino)
+  // camino central de oeste a este
   relleno(suelo, 0, 12, W, 4, G.tierra)
   relleno(suelo, 0, 12, W, 1, G.tierraPiedras)
   relleno(suelo, 0, 15, W, 1, G.tierraPiedras)
 
-  // estanque al norte (agua con borde superior)
+  // estanque al norte
   relleno(obstaculos, 5, 4, 9, 5, G.agua)
   relleno(obstaculos, 5, 3, 9, 1, G.aguaBorde)
 
-  // huertos cercados (dos parcelas)
-  relleno(obstaculos, 4, 11, 12, 1, G.cercaH) // cerca sur del huerto norte… el camino pasa por 12; ajustamos
-  // parcela noroeste: cercado alrededor de 4..15 × 8..11
-  relleno(obstaculos, 16, 8, 1, 4, G.cercaV)
-  relleno(obstaculos, 4, 8, 12, 1, G.cercaH)
-  relleno(obstaculos, 4, 11, 12, 1, G.cercaH)
-  relleno(obstaculos, 4, 8, 1, 4, G.cercaV)
-  // parcela sureste
-  relleno(obstaculos, 22, 18, 13, 1, G.cercaH)
+  // casa-redil de Oldo al sur (suelo de tablones, descanso dentro)
+  relleno(suelo, 6, 18, 10, 6, G.tablon)
+  relleno(obstaculos, 6, 18, 10, 1, G.muro)
+  relleno(obstaculos, 6, 18, 1, 6, G.muro)
+  relleno(obstaculos, 15, 18, 1, 6, G.muro)
+  relleno(frente, 5, 15, 12, 3, G.tejado)
+
+  // huerto cercado al este
+  relleno(obstaculos, 22, 17, 13, 1, G.cercaH)
   relleno(obstaculos, 22, 24, 13, 1, G.cercaH)
-  relleno(obstaculos, 22, 18, 1, 7, G.cercaV)
-  relleno(obstaculos, 34, 18, 1, 7, G.cercaV)
+  relleno(obstaculos, 22, 17, 1, 8, G.cercaV)
+  relleno(obstaculos, 34, 17, 1, 8, G.cercaV)
 
-  // arbolado disperso
-  for (const [x, y] of [
-    [3, 20],
-    [3, 23],
-    [18, 5],
-    [21, 5],
-    [24, 5],
-    [27, 5],
-    [30, 8],
-    [36, 14],
-    [36, 22],
-    [10, 24],
-    [14, 22],
-    [17, 24],
-  ])
-    obstaculos[y * W + x] = G.arbol
-  // rocas y arbustos
-  obstaculos[9 * W + 20] = G.roca
-  obstaculos[9 * W + 21] = G.roca
-  obstaculos[19 * W + 6] = G.arbusto
-  obstaculos[19 * W + 7] = G.arbusto
-  obstaculos[8 * W + 33] = G.arbusto
-
-  // poste indicador junto al camino
-  obstaculos[11 * W + 30] = G.poste
-
-  // decoración: flores e hierba alta
+  // flores y decoracion
   for (let i = 0; i < 26; i++) {
     const x = 2 + Math.floor(rng() * (W - 4))
     const y = 2 + Math.floor(rng() * (H - 4))
     if (suelo[y * W + x] === G.cesped && obstaculos[y * W + x] === 0)
       decoracion[y * W + x] = rng() < 0.5 ? G.flores : G.hierbaAlta
   }
-  // flores dentro de las parcelas (huerto cuidado)
-  for (const [x, y] of [
-    [6, 9],
-    [9, 10],
-    [12, 9],
-    [25, 19],
-    [28, 20],
-    [31, 19],
-    [33, 22],
-  ])
-    decoracion[y * W + x] = G.flores
 
-  bordesArboles(obstaculos, [
-    { lado: 'E', a: 12, b: 16 }, // hueco de salida al este (filas 12–15)
-  ])
+  bordes(obstaculos, [{ lado: 'E', a: 12, b: 16 }], G.arbol)
 
-  const spawns = capaObjetos('spawns', [
-    objPunto('spawns', (W / 2) * 16, (H / 2) * 16, { nombre: 'centro' }),
-    objPunto('spawns', (W / 2) * 16, 1.5 * 16),
-    objPunto('spawns', (W / 2) * 16, (H - 1.5) * 16),
-    objPunto('spawns', (W - 1.5) * 16, 14 * 16),
-    objPunto('spawns', 1.5 * 16, 14 * 16),
-  ])
-
-  // salida: borde este en el camino (hacia molino)
+  const spawns = spawnsEstandar(W / 2, 14)
   const salidas = capaObjetos('salidas', [
-    objRect('salidas', (W - 1) * 16, 12 * 16, 16, 4 * 16, {
-      hacia: 'molino',
-      dir: 'E',
-    }),
+    objRect('salidas', (W - 1) * 16, 12 * 16, 16, 4 * 16, { hacia: 'molino', dir: 'E' }),
   ])
 
-  exportar('public/maps/corazon_ceniza/vegaverde.json', [
+  // NPC: Belthar
+  const pBelthar = objPunto('npcs', 10 * 16, 14 * 16)
+  pBelthar.name = 'belthar'
+  const npcs = capaObjetos('npcs', [pBelthar])
+
+  // Descanso en la casa
+  const descanso = capaObjetos('descanso', [objPunto('descanso', 8 * 16, 20 * 16)])
+
+  // Objetos: provisiones y capa_gris
+  const pProv = objPunto('objetos', 13 * 16, 20 * 16)
+  pProv.name = 'provisiones'
+  const pCapa = objPunto('objetos', 13 * 16, 22 * 16)
+  pCapa.name = 'capa_gris'
+  const objetos = capaObjetos('objetos', [pProv, pCapa])
+
+  // Monedas: 6
+  const monedas = capaObjetos('monedas', [
+    ...Array.from({ length: 6 }, (_, i) =>
+      objPunto('monedas', (24 + (i % 3) * 3) * 16, (19 + Math.floor(i / 3) * 3) * 16, { valor: 1 })
+    ),
+  ])
+
+  exportar('vegaverde', [
     capaTiles('suelo', suelo),
     capaTiles('obstaculos', obstaculos),
     capaTiles('decoracion', decoracion),
     capaTiles('frente', frente),
     spawns,
     salidas,
-    capaObjetos('npcs', []),
+    npcs,
+    descanso,
     capaObjetos('enemigos', []),
-    capaObjetos('objetos', []),
-    capaObjetos('monedas', []),
+    objetos,
+    monedas,
     capaObjetos('eventos', []),
   ])
 }
 
 // ---------------------------------------------------------------------------
-// MOLINO: camino oeste→este, molino con tejado (frente), río al sur.
+// 2. MOLINO: camino O<->E, molino, río al sur, provisiones, 6 monedas
 // ---------------------------------------------------------------------------
-
 function molino() {
   const rng = mulberry32(2002)
   const suelo = capaVacia(0)
@@ -326,76 +312,44 @@ function molino() {
     for (let x = 0; x < W; x++)
       suelo[y * W + x] = rng() < 0.18 ? G.cespedMata : G.cesped
 
-  // camino oeste→este
   relleno(suelo, 0, 12, W, 4, G.tierra)
   relleno(suelo, 0, 12, W, 1, G.tierraPiedras)
   relleno(suelo, 0, 15, W, 1, G.tierraPiedras)
-  // ramal al norte hacia el molino
   relleno(suelo, 18, 8, 3, 4, G.tierra)
 
-  // río Plata al sur con pasarela
   relleno(obstaculos, 0, 22, W, 4, G.agua)
   relleno(obstaculos, 0, 21, W, 1, G.aguaBorde)
   relleno(obstaculos, 12, 21, 3, 5, G.pasarela)
 
-  // edificio del molino (muro + tejado en «frente» + suelo de tablones)
+  // Molino
   relleno(suelo, 15, 4, 9, 5, G.tablon)
   relleno(obstaculos, 15, 4, 9, 1, G.muro)
   relleno(obstaculos, 15, 4, 1, 5, G.muro)
   relleno(obstaculos, 23, 4, 1, 5, G.muro)
-  relleno(obstaculos, 15, 6, 2, 1, G.muro) // pared interior parcial
-  relleno(obstaculos, 21, 6, 2, 1, G.muro)
-  relleno(frente, 15, 2, 9, 2, G.tejado) // tejado que sobresale y tapa
-  relleno(frente, 14, 3, 1, 1, G.tejado)
-  relleno(frente, 24, 3, 1, 1, G.tejado)
+  relleno(frente, 15, 2, 9, 2, G.tejado)
 
-  // rocas dispersas
-  for (const [x, y] of [
-    [6, 8],
-    [7, 8],
-    [30, 6],
-    [31, 6],
-    [33, 17],
-    [8, 18],
-    [27, 18],
-  ])
-    obstaculos[y * W + x] = G.roca
-  obstaculos[10 * W + 26] = G.arbusto
-  obstaculos[10 * W + 27] = G.arbusto
-  obstaculos[9 * W + 5] = G.arbol
-  obstaculos[9 * W + 34] = G.arbol
-  obstaculos[17 * W + 3] = G.arbol
-  obstaculos[17 * W + 35] = G.arbol
+  bordes(obstaculos, [
+    { lado: 'O', a: 12, b: 16 },
+    { lado: 'E', a: 12, b: 16 },
+  ], G.arbol)
 
-  for (let i = 0; i < 22; i++) {
-    const x = 2 + Math.floor(rng() * (W - 4))
-    const y = 2 + Math.floor(rng() * (H - 4))
-    if (suelo[y * W + x] === G.cesped && obstaculos[y * W + x] === 0)
-      decoracion[y * W + x] = rng() < 0.5 ? G.flores : G.hierbaAlta
-  }
-
-  bordesArboles(obstaculos, [
-    { lado: 'O', a: 12, b: 16 }, // hueco de salida al oeste (filas 12–15)
-    { lado: 'E', a: 12, b: 16 }, // hueco de salida al este (hacia puente)
-  ])
-
-  const spawns = capaObjetos('spawns', [
-    objPunto('spawns', (W / 2) * 16, 20 * 16),
-    objPunto('spawns', (W / 2) * 16, 1.5 * 16),
-    objPunto('spawns', (W / 2) * 16, (H - 6) * 16),
-    objPunto('spawns', (W - 1.5) * 16, 14 * 16),
-    objPunto('spawns', 1.5 * 16, 14 * 16),
-  ])
-
+  const spawns = spawnsEstandar(W / 2, 14)
   const salidas = capaObjetos('salidas', [
     objRect('salidas', 0, 12 * 16, 16, 4 * 16, { hacia: 'vegaverde', dir: 'O' }),
-    objRect('salidas', (W - 1) * 16, 12 * 16, 16, 4 * 16, {
-      hacia: 'puente',
-      dir: 'E',
-    }),
+    objRect('salidas', (W - 1) * 16, 12 * 16, 16, 4 * 16, { hacia: 'puente', dir: 'E' }),
   ])
 
-  exportar('public/maps/corazon_ceniza/molino.json', [
+  const pProv = objPunto('objetos', 19 * 16, 6 * 16)
+  pProv.name = 'provisiones'
+  const objetos = capaObjetos('objetos', [pProv])
+
+  const monedas = capaObjetos('monedas', [
+    ...Array.from({ length: 6 }, (_, i) =>
+      objPunto('monedas', (6 + (i % 3) * 3) * 16, (6 + Math.floor(i / 3) * 3) * 16, { valor: 1 })
+    ),
+  ])
+
+  exportar('molino', [
     capaTiles('suelo', suelo),
     capaTiles('obstaculos', obstaculos),
     capaTiles('decoracion', decoracion),
@@ -404,18 +358,15 @@ function molino() {
     salidas,
     capaObjetos('npcs', []),
     capaObjetos('enemigos', []),
-    capaObjetos('objetos', []),
-    capaObjetos('monedas', []),
+    objetos,
+    monedas,
     capaObjetos('eventos', []),
   ])
 }
 
 // ---------------------------------------------------------------------------
-// PUENTE: el Río Plata baja en vertical; el puente de piedra cruza de
-// oeste a este. Salidas: oeste → molino, sur → rioclaro (el norte al bosque
-// se estrena en Fases E/G, así que su borde queda cerrado).
+// 3. PUENTE: río vertical, puente O-E, salidas O (molino), N (bosque), S (rioclaro), lobo, 8 monedas
 // ---------------------------------------------------------------------------
-
 function puente() {
   const rng = mulberry32(3003)
   const suelo = capaVacia(0)
@@ -427,72 +378,44 @@ function puente() {
     for (let x = 0; x < W; x++)
       suelo[y * W + x] = rng() < 0.18 ? G.cespedMata : G.cesped
 
-  // río vertical en el centro-este, con puente de piedra a la altura del camino
   const X_RIO = 24
   relleno(obstaculos, X_RIO, 0, 4, H, G.agua)
   relleno(obstaculos, X_RIO - 1, 0, 1, H, G.aguaBorde)
-  // orillas de tierra a ambos lados
   relleno(suelo, X_RIO - 2, 0, 1, H, G.tierraPiedras)
   relleno(suelo, X_RIO + 4, 0, 1, H, G.tierraPiedras)
-  // camino oeste→este y puente (piedra: tablon a lo ancho)
+
   relleno(suelo, 0, 12, W, 4, G.tierra)
-  relleno(suelo, 0, 12, W, 1, G.tierraPiedras)
-  relleno(suelo, 0, 15, W, 1, G.tierraPiedras)
-  relleno(obstaculos, X_RIO - 1, 12, 6, 4, G.tablon) // el puente pisa el río
-  // ramal del camino hacia el sur (a Ríoclaro), a la vera oriental
+  relleno(obstaculos, X_RIO - 1, 12, 6, 4, G.tablon)
+
+  // ramal hacia el sur (rioclaro)
   relleno(suelo, X_RIO + 5, 12, 3, H - 12, G.tierra)
-  relleno(suelo, X_RIO + 7, 13, 1, H - 13, G.tierraPiedras)
+  // ramal hacia el norte (bosque)
+  relleno(suelo, X_RIO + 5, 0, 3, 12, G.tierra)
 
-  // pilares del puente (decoración) y sauces
-  for (const [x, y] of [
-    [2, 5],
-    [6, 7],
-    [10, 4],
-    [14, 8],
-    [18, 5],
-    [21, 9],
-    [5, 18],
-    [13, 19],
-    [17, 24],
-    [20, 21],
-  ])
-    obstaculos[y * W + x] = G.arbol
-  obstaculos[8 * W + X_RIO + 7] = G.roca
-  obstaculos[8 * W + X_RIO + 8] = G.roca
-  obstaculos[20 * W + 8] = G.arbusto
-  obstaculos[20 * W + 9] = G.arbusto
-  // poste indicador en el cruce
-  obstaculos[11 * W + (X_RIO + 6)] = G.poste
+  bordes(obstaculos, [
+    { lado: 'O', a: 12, b: 16 },
+    { lado: 'N', a: X_RIO + 5, b: X_RIO + 8 },
+    { lado: 'S', a: X_RIO + 5, b: X_RIO + 8 },
+  ], G.arbol)
 
-  for (let i = 0; i < 20; i++) {
-    const x = 2 + Math.floor(rng() * (W - 4))
-    const y = 2 + Math.floor(rng() * (H - 4))
-    if (suelo[y * W + x] === G.cesped && obstaculos[y * W + x] === 0)
-      decoracion[y * W + x] = rng() < 0.5 ? G.flores : G.hierbaAlta
-  }
-
-  bordesArboles(obstaculos, [
-    { lado: 'O', a: 12, b: 16 }, // hacia molino
-    { lado: 'S', a: X_RIO + 5, b: X_RIO + 8 }, // hacia rioclaro
-  ])
-
-  const spawns = capaObjetos('spawns', [
-    objPunto('spawns', (W / 2) * 16, 20 * 16),
-    objPunto('spawns', (W / 2) * 16, 1.5 * 16),
-    objPunto('spawns', (W / 2) * 16, (H - 1.5) * 16),
-    objPunto('spawns', (W - 1.5) * 16, 14 * 16),
-    objPunto('spawns', 1.5 * 16, 14 * 16),
-  ])
-
+  const spawns = spawnsEstandar(X_RIO + 6, 14)
   const salidas = capaObjetos('salidas', [
     objRect('salidas', 0, 12 * 16, 16, 4 * 16, { hacia: 'molino', dir: 'O' }),
-    objRect('salidas', (X_RIO + 5) * 16, (H - 1) * 16, 3 * 16, 16, {
-      hacia: 'rioclaro',
-      dir: 'S',
-    }),
+    objRect('salidas', (X_RIO + 5) * 16, 0, 3 * 16, 16, { hacia: 'bosque', dir: 'N' }),
+    objRect('salidas', (X_RIO + 5) * 16, (H - 1) * 16, 3 * 16, 16, { hacia: 'rioclaro', dir: 'S' }),
   ])
 
-  exportar('public/maps/corazon_ceniza/puente.json', [
+  const pLobo = objPunto('enemigos', 14 * 16, 14 * 16)
+  pLobo.name = 'lobo'
+  const enemigos = capaObjetos('enemigos', [pLobo])
+
+  const monedas = capaObjetos('monedas', [
+    ...Array.from({ length: 8 }, (_, i) =>
+      objPunto('monedas', (4 + (i % 4) * 3) * 16, (18 + Math.floor(i / 4) * 3) * 16, { valor: 1 })
+    ),
+  ])
+
+  exportar('puente', [
     capaTiles('suelo', suelo),
     capaTiles('obstaculos', obstaculos),
     capaTiles('decoracion', decoracion),
@@ -500,22 +423,87 @@ function puente() {
     spawns,
     salidas,
     capaObjetos('npcs', []),
-    capaObjetos('enemigos', []),
+    enemigos,
     capaObjetos('objetos', []),
-    capaObjetos('monedas', [
-      ...Array.from({ length: 8 }, (_, i) =>
-        objPunto('monedas', (3 + (i % 4) + Math.floor(i / 4) * 5) * 16, (16 + (i % 3) * 3) * 16, { valor: 1 })
-      ),
-    ]),
+    monedas,
     capaObjetos('eventos', []),
   ])
 }
 
 // ---------------------------------------------------------------------------
-// RIOCLARO: aldea de piedra junto al vado. Posada de Dorotea (tejado en
-// «frente», cama en capa «descanso»), salida norte → puente.
+// 4. BOSQUE: faroles, Sylvana, espectro, hierbas, antorcha, 6 monedas, salidas S (puente), E (valoria)
 // ---------------------------------------------------------------------------
+function bosque() {
+  const rng = mulberry32(4001)
+  const suelo = capaVacia(0)
+  const obstaculos = capaVacia(0)
+  const decoracion = capaVacia(0)
+  const frente = capaVacia(0)
 
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++)
+      suelo[y * W + x] = rng() < 0.25 ? G.cespedMata : G.cesped
+
+  // sendero de S (puente) a E (valoria)
+  relleno(suelo, 18, 12, 4, H - 12, G.tierra)
+  relleno(suelo, 18, 12, W - 18, 4, G.tierra)
+
+  // arboleda densa
+  for (let i = 0; i < 40; i++) {
+    const x = 2 + Math.floor(rng() * (W - 4))
+    const y = 2 + Math.floor(rng() * (H - 4))
+    if (suelo[y * W + x] !== G.tierra) obstaculos[y * W + x] = G.arbol
+  }
+
+  bordes(obstaculos, [
+    { lado: 'S', a: 18, b: 22 },
+    { lado: 'E', a: 12, b: 16 },
+  ], G.arbol)
+
+  const spawns = spawnsEstandar(20, 14)
+  const salidas = capaObjetos('salidas', [
+    objRect('salidas', 18 * 16, (H - 1) * 16, 4 * 16, 16, { hacia: 'puente', dir: 'S' }),
+    objRect('salidas', (W - 1) * 16, 12 * 16, 16, 4 * 16, { hacia: 'valoria', dir: 'E' }),
+  ])
+
+  const pSylvana = objPunto('npcs', 14 * 16, 10 * 16)
+  pSylvana.name = 'sylvana'
+  const npcs = capaObjetos('npcs', [pSylvana])
+
+  const pEspectro = objPunto('enemigos', 26 * 16, 18 * 16)
+  pEspectro.name = 'espectro'
+  const enemigos = capaObjetos('enemigos', [pEspectro])
+
+  const pHierbas = objPunto('objetos', 10 * 16, 8 * 16)
+  pHierbas.name = 'hierbas'
+  const pAntorcha = objPunto('objetos', 28 * 16, 6 * 16)
+  pAntorcha.name = 'antorcha'
+  const objetos = capaObjetos('objetos', [pHierbas, pAntorcha])
+
+  const monedas = capaObjetos('monedas', [
+    ...Array.from({ length: 6 }, (_, i) =>
+      objPunto('monedas', (6 + (i % 3) * 4) * 16, (18 + Math.floor(i / 3) * 4) * 16, { valor: 1 })
+    ),
+  ])
+
+  exportar('bosque', [
+    capaTiles('suelo', suelo),
+    capaTiles('obstaculos', obstaculos),
+    capaTiles('decoracion', decoracion),
+    capaTiles('frente', frente),
+    spawns,
+    salidas,
+    npcs,
+    enemigos,
+    objetos,
+    monedas,
+    capaObjetos('eventos', []),
+  ])
+}
+
+// ---------------------------------------------------------------------------
+// 5. RIOCLARO: Dorotea, posada, descanso, gatillo encargo, salidas N (puente), S (valoria)
+// ---------------------------------------------------------------------------
 function rioclaro() {
   const rng = mulberry32(4004)
   const suelo = capaVacia(0)
@@ -527,87 +515,297 @@ function rioclaro() {
     for (let x = 0; x < W; x++)
       suelo[y * W + x] = rng() < 0.18 ? G.cespedMata : G.cesped
 
-  // camino real: del norte (puente) a la plaza y hacia el sur (Valoria, G)
+  // camino real de N (puente) a S (valoria)
   relleno(suelo, 18, 0, 4, H, G.tierra)
   relleno(suelo, 18, 0, 1, H, G.tierraPiedras)
   relleno(suelo, 21, 0, 1, H, G.tierraPiedras)
 
-  // la posada: edificio con tejado (frente) y suelo de tablones; Dorotea dentro
+  // posada de Dorotea
   relleno(suelo, 24, 6, 10, 6, G.tablon)
   relleno(obstaculos, 24, 6, 10, 1, G.muro)
   relleno(obstaculos, 24, 6, 1, 6, G.muro)
   relleno(obstaculos, 33, 6, 1, 6, G.muro)
   relleno(frente, 23, 3, 12, 3, G.tejado)
-  relleno(frente, 22, 4, 1, 2, G.tejado)
-  relleno(frente, 35, 4, 1, 2, G.tejado)
 
-  // casitas de piedra al oeste
-  relleno(suelo, 6, 14, 7, 5, G.tablon)
-  relleno(obstaculos, 6, 14, 7, 1, G.muro)
-  relleno(obstaculos, 6, 14, 1, 5, G.muro)
-  relleno(obstaculos, 12, 14, 1, 5, G.muro)
-  relleno(frente, 5, 11, 9, 3, G.tejado)
-  relleno(suelo, 8, 21, 6, 4, G.tablon)
-  relleno(obstaculos, 8, 21, 6, 1, G.muro)
-  relleno(obstaculos, 8, 21, 1, 4, G.muro)
-  relleno(obstaculos, 13, 21, 1, 4, G.muro)
-  relleno(frente, 7, 18, 8, 3, G.tejado)
+  bordes(obstaculos, [
+    { lado: 'N', a: 18, b: 22 },
+    { lado: 'S', a: 18, b: 22 },
+  ], G.arbol)
 
-  // gallinas opinando: cercado con hierba alta dentro
-  relleno(obstaculos, 27, 16, 8, 1, G.cercaH)
-  relleno(obstaculos, 27, 21, 8, 1, G.cercaH)
-  relleno(obstaculos, 27, 16, 1, 6, G.cercaV)
-  relleno(obstaculos, 34, 16, 1, 6, G.cercaV)
-  decoracion[18 * W + 29] = G.hierbaAlta
-  decoracion[19 * W + 31] = G.hierbaAlta
-  decoracion[20 * W + 28] = G.hierbaAlta
-
-  for (const [x, y] of [
-    [4, 6],
-    [7, 8],
-    [3, 24],
-    [16, 8],
-    [37, 12],
-    [36, 24],
-    [30, 24],
-    [22, 17],
-  ])
-    obstaculos[y * W + x] = G.arbol
-  obstaculos[5 * W + 14] = G.arbusto
-  obstaculos[5 * W + 15] = G.arbusto
-  obstaculos[24 * W + 20] = G.roca
-  obstaculos[9 * W + 34] = G.poste
-
-  for (let i = 0; i < 24; i++) {
-    const x = 2 + Math.floor(rng() * (W - 4))
-    const y = 2 + Math.floor(rng() * (H - 4))
-    if (suelo[y * W + x] === G.cesped && obstaculos[y * W + x] === 0)
-      decoracion[y * W + x] = rng() < 0.5 ? G.flores : G.hierbaAlta
-  }
-
-  bordesArboles(obstaculos, [
-    { lado: 'N', a: 18, b: 22 }, // hacia puente
-  ])
-
-  const spawns = capaObjetos('spawns', [
-    objPunto('spawns', (W / 2) * 16, (H / 2) * 16),
-    objPunto('spawns', 20 * 16, 1.5 * 16),
-    objPunto('spawns', 20 * 16, (H - 1.5) * 16),
-    objPunto('spawns', (W - 1.5) * 16, 14 * 16),
-    objPunto('spawns', 1.5 * 16, 14 * 16),
-  ])
-
+  const spawns = spawnsEstandar(20, 14)
   const salidas = capaObjetos('salidas', [
     objRect('salidas', 18 * 16, 0, 4 * 16, 16, { hacia: 'puente', dir: 'N' }),
+    objRect('salidas', 18 * 16, (H - 1) * 16, 4 * 16, 16, { hacia: 'valoria', dir: 'S' }),
   ])
 
-  // Dorotea espera dentro de la posada; la cama, en la esquina noroeste.
-  const puntoDorotea = objPunto('npcs', 31 * 16, 11 * 16)
-  puntoDorotea.name = 'dorotea'
-  const npcs = capaObjetos('npcs', [puntoDorotea])
+  const pDorotea = objPunto('npcs', 31 * 16, 11 * 16)
+  pDorotea.name = 'dorotea'
+  const npcs = capaObjetos('npcs', [pDorotea])
+
   const descanso = capaObjetos('descanso', [objPunto('descanso', 26 * 16, 10 * 16)])
 
-  exportar('public/maps/corazon_ceniza/rioclaro.json', [
+  const pEncargo = objPunto('eventos', 29 * 16, 11 * 16, { evento: 'encargo' })
+  pEncargo.name = 'encargo'
+  const eventos = capaObjetos('eventos', [pEncargo])
+
+  exportar('rioclaro', [
+    capaTiles('suelo', suelo),
+    capaTiles('obstaculos', obstaculos),
+    capaTiles('decoracion', decoracion),
+    capaTiles('frente', frente),
+    spawns,
+    salidas,
+    npcs,
+    descanso,
+    capaObjetos('enemigos', []),
+    capaObjetos('objetos', []),
+    capaObjetos('monedas', []),
+    eventos,
+  ])
+}
+
+// ---------------------------------------------------------------------------
+// 6. VALORIA: Ciudad Dorada, Aldric, descanso, gatillo consejo, salidas O (bosque), N (rioclaro), E (minas)
+// ---------------------------------------------------------------------------
+function valoria() {
+  const rng = mulberry32(6006)
+  const suelo = capaVacia(0)
+  const obstaculos = capaVacia(0)
+  const decoracion = capaVacia(0)
+  const frente = capaVacia(0)
+
+  // Plaza de piedra / tablón blanco
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++)
+      suelo[y * W + x] = rng() < 0.2 ? G.tierraPiedras : G.tierra
+
+  // Gran Sala del Consejo del Sol al norte
+  relleno(suelo, 12, 3, 16, 8, G.tablon)
+  relleno(obstaculos, 12, 3, 16, 1, G.muro)
+  relleno(obstaculos, 12, 3, 1, 8, G.muro)
+  relleno(obstaculos, 27, 3, 1, 8, G.muro)
+  relleno(frente, 11, 1, 18, 2, G.tejado)
+
+  // Albergue / descanso al suroeste
+  relleno(suelo, 4, 18, 8, 6, G.tablon)
+  relleno(obstaculos, 4, 18, 8, 1, G.muro)
+  relleno(obstaculos, 4, 18, 1, 6, G.muro)
+  relleno(obstaculos, 11, 18, 1, 6, G.muro)
+  relleno(frente, 3, 16, 10, 2, G.tejado)
+
+  bordes(obstaculos, [
+    { lado: 'O', a: 12, b: 16 }, // a bosque
+    { lado: 'N', a: 18, b: 22 }, // a rioclaro
+    { lado: 'E', a: 12, b: 16 }, // a minas
+  ], G.muro)
+
+  const spawns = spawnsEstandar(20, 16)
+  const salidas = capaObjetos('salidas', [
+    objRect('salidas', 0, 12 * 16, 16, 4 * 16, { hacia: 'bosque', dir: 'O' }),
+    objRect('salidas', 18 * 16, 0, 4 * 16, 16, { hacia: 'rioclaro', dir: 'N' }),
+    objRect('salidas', (W - 1) * 16, 12 * 16, 16, 4 * 16, { hacia: 'minas', dir: 'E' }),
+  ])
+
+  const pAldric = objPunto('npcs', 17 * 16, 7 * 16)
+  pAldric.name = 'aldric'
+  const npcs = capaObjetos('npcs', [pAldric])
+
+  const descanso = capaObjetos('descanso', [objPunto('descanso', 6 * 16, 21 * 16)])
+
+  const pConsejo = objPunto('eventos', 22 * 16, 7 * 16, { evento: 'consejo' })
+  pConsejo.name = 'consejo'
+  const eventos = capaObjetos('eventos', [pConsejo])
+
+  exportar('valoria', [
+    capaTiles('suelo', suelo),
+    capaTiles('obstaculos', obstaculos),
+    capaTiles('decoracion', decoracion),
+    capaTiles('frente', frente),
+    spawns,
+    salidas,
+    npcs,
+    descanso,
+    capaObjetos('enemigos', []),
+    capaObjetos('objetos', []),
+    capaObjetos('monedas', []),
+    eventos,
+  ])
+}
+
+// ---------------------------------------------------------------------------
+// 7. MINAS: Barrok, Torkan, hacha_goran, 2 trasgos, 12 monedas, salidas O (valoria), E (cienagas)
+// ---------------------------------------------------------------------------
+function minas() {
+  const rng = mulberry32(7007)
+  const suelo = capaVacia(0)
+  const obstaculos = capaVacia(0)
+  const decoracion = capaVacia(0)
+  const frente = capaVacia(0)
+
+  // galerías de roca
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++)
+      suelo[y * W + x] = rng() < 0.3 ? G.tierraPiedras : G.tierra
+
+  // columnas y muros de mina
+  relleno(obstaculos, 10, 6, 2, 4, G.roca)
+  relleno(obstaculos, 26, 6, 2, 4, G.roca)
+  relleno(obstaculos, 10, 18, 2, 4, G.roca)
+  relleno(obstaculos, 26, 18, 2, 4, G.roca)
+
+  // fragua de Torkan al norte
+  relleno(suelo, 16, 4, 8, 6, G.tablon)
+
+  bordes(obstaculos, [
+    { lado: 'O', a: 12, b: 16 },
+    { lado: 'E', a: 12, b: 16 },
+  ], G.roca)
+
+  const spawns = spawnsEstandar(W / 2, 14)
+  const salidas = capaObjetos('salidas', [
+    objRect('salidas', 0, 12 * 16, 16, 4 * 16, { hacia: 'valoria', dir: 'O' }),
+    objRect('salidas', (W - 1) * 16, 12 * 16, 16, 4 * 16, { hacia: 'cienagas', dir: 'E' }),
+  ])
+
+  const pTorkan = objPunto('npcs', 18 * 16, 7 * 16)
+  pTorkan.name = 'torkan'
+  const npcs = capaObjetos('npcs', [pTorkan])
+
+  const pHacha = objPunto('objetos', 22 * 16, 7 * 16)
+  pHacha.name = 'hacha_goran'
+  const objetos = capaObjetos('objetos', [pHacha])
+
+  const pT1 = objPunto('enemigos', 15 * 16, 15 * 16)
+  pT1.name = 'trasgo'
+  const pT2 = objPunto('enemigos', 30 * 16, 15 * 16)
+  pT2.name = 'trasgo'
+  const enemigos = capaObjetos('enemigos', [pT1, pT2])
+
+  const monedas = capaObjetos('monedas', [
+    ...Array.from({ length: 12 }, (_, i) =>
+      objPunto('monedas', (6 + (i % 6) * 4) * 16, (20 + Math.floor(i / 6) * 3) * 16, { valor: 1 })
+    ),
+  ])
+
+  exportar('minas', [
+    capaTiles('suelo', suelo),
+    capaTiles('obstaculos', obstaculos),
+    capaTiles('decoracion', decoracion),
+    capaTiles('frente', frente),
+    spawns,
+    salidas,
+    npcs,
+    enemigos,
+    objetos,
+    monedas,
+    capaObjetos('eventos', []),
+  ])
+}
+
+// ---------------------------------------------------------------------------
+// 8. CIENAGAS: fango, 2 espectros, salidas O (minas), N (refugio), E (yerma)
+// ---------------------------------------------------------------------------
+function cienagas() {
+  const rng = mulberry32(8008)
+  const suelo = capaVacia(0)
+  const obstaculos = capaVacia(0)
+  const decoracion = capaVacia(0)
+  const frente = capaVacia(0)
+
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++)
+      suelo[y * W + x] = rng() < 0.3 ? G.tierraPiedras : G.tierra
+
+  // pantanos y charcos
+  relleno(obstaculos, 6, 5, 10, 5, G.agua)
+  relleno(obstaculos, 24, 18, 10, 5, G.agua)
+  relleno(obstaculos, 8, 17, 6, 4, G.agua)
+
+  // pasarela de madera
+  relleno(suelo, 0, 12, W, 4, G.tablon)
+  relleno(suelo, 18, 0, 4, H, G.tablon)
+
+  bordes(obstaculos, [
+    { lado: 'O', a: 12, b: 16 },
+    { lado: 'N', a: 18, b: 22 },
+    { lado: 'E', a: 12, b: 16 },
+  ], G.arbol)
+
+  const spawns = spawnsEstandar(20, 14)
+  const salidas = capaObjetos('salidas', [
+    objRect('salidas', 0, 12 * 16, 16, 4 * 16, { hacia: 'minas', dir: 'O' }),
+    objRect('salidas', 18 * 16, 0, 4 * 16, 16, { hacia: 'refugio', dir: 'N' }),
+    objRect('salidas', (W - 1) * 16, 12 * 16, 16, 4 * 16, { hacia: 'yerma', dir: 'E' }),
+  ])
+
+  const pE1 = objPunto('enemigos', 12 * 16, 10 * 16)
+  pE1.name = 'espectro'
+  const pE2 = objPunto('enemigos', 28 * 16, 10 * 16)
+  pE2.name = 'espectro'
+  const enemigos = capaObjetos('enemigos', [pE1, pE2])
+
+  exportar('cienagas', [
+    capaTiles('suelo', suelo),
+    capaTiles('obstaculos', obstaculos),
+    capaTiles('decoracion', decoracion),
+    capaTiles('frente', frente),
+    spawns,
+    salidas,
+    capaObjetos('npcs', []),
+    enemigos,
+    capaObjetos('objetos', []),
+    capaObjetos('monedas', []),
+    capaObjetos('eventos', []),
+  ])
+}
+
+// ---------------------------------------------------------------------------
+// 9. REFUGIO: Torre de Belthar, Belthar, descanso, salida S (cienagas)
+// ---------------------------------------------------------------------------
+function refugio() {
+  const rng = mulberry32(9009)
+  const suelo = capaVacia(0)
+  const obstaculos = capaVacia(0)
+  const decoracion = capaVacia(0)
+  const frente = capaVacia(0)
+
+  // fango exterior
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++)
+      suelo[y * W + x] = G.tierraPiedras
+
+  // agua rodeando el islote
+  relleno(obstaculos, 4, 3, W - 8, 1, G.agua)
+  relleno(obstaculos, 4, 3, 1, H - 6, G.agua)
+  relleno(obstaculos, W - 5, 3, 1, H - 6, G.agua)
+
+  // torre central de piedra
+  relleno(suelo, 12, 6, 16, 12, G.tablon)
+  relleno(obstaculos, 12, 6, 16, 1, G.muro)
+  relleno(obstaculos, 12, 6, 1, 12, G.muro)
+  relleno(obstaculos, 27, 6, 1, 12, G.muro)
+  relleno(frente, 11, 4, 18, 2, G.tejado)
+
+  // fuente de agua clara en el centro
+  relleno(obstaculos, 19, 11, 2, 2, G.agua)
+
+  // camino de salida al sur
+  relleno(suelo, 18, 18, 4, H - 18, G.tierra)
+
+  bordes(obstaculos, [{ lado: 'S', a: 18, b: 22 }], G.arbol)
+
+  const spawns = spawnsEstandar(20, 16)
+  const salidas = capaObjetos('salidas', [
+    objRect('salidas', 18 * 16, (H - 1) * 16, 4 * 16, 16, { hacia: 'cienagas', dir: 'S' }),
+  ])
+
+  const pBelthar = objPunto('npcs', 16 * 16, 10 * 16)
+  pBelthar.name = 'belthar'
+  const npcs = capaObjetos('npcs', [pBelthar])
+
+  const descanso = capaObjetos('descanso', [objPunto('descanso', 24 * 16, 9 * 16)])
+
+  exportar('refugio', [
     capaTiles('suelo', suelo),
     capaTiles('obstaculos', obstaculos),
     capaTiles('decoracion', decoracion),
@@ -623,11 +821,186 @@ function rioclaro() {
   ])
 }
 
-idObjeto = 1
-vegaverde()
-idObjeto = 1
-molino()
-idObjeto = 1
-puente()
-idObjeto = 1
-rioclaro()
+// ---------------------------------------------------------------------------
+// 10. YERMA: Yermos de Ceniza, 2 loberos, salidas O (cienagas), N (aguja), E (umbak)
+// ---------------------------------------------------------------------------
+function yerma() {
+  const rng = mulberry32(10010)
+  const suelo = capaVacia(0)
+  const obstaculos = capaVacia(0)
+  const decoracion = capaVacia(0)
+  const frente = capaVacia(0)
+
+  // tierra árida y grietas
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++)
+      suelo[y * W + x] = rng() < 0.4 ? G.tierraPiedras : G.tierra
+
+  relleno(obstaculos, 8, 8, 4, 3, G.roca)
+  relleno(obstaculos, 28, 8, 4, 3, G.roca)
+  relleno(obstaculos, 14, 18, 5, 2, G.roca)
+
+  bordes(obstaculos, [
+    { lado: 'O', a: 12, b: 16 },
+    { lado: 'N', a: 18, b: 22 },
+    { lado: 'E', a: 12, b: 16 },
+  ], G.roca)
+
+  const spawns = spawnsEstandar(20, 14)
+  const salidas = capaObjetos('salidas', [
+    objRect('salidas', 0, 12 * 16, 16, 4 * 16, { hacia: 'cienagas', dir: 'O' }),
+    objRect('salidas', 18 * 16, 0, 4 * 16, 16, { hacia: 'aguja', dir: 'N' }),
+    objRect('salidas', (W - 1) * 16, 12 * 16, 16, 4 * 16, { hacia: 'umbak', dir: 'E' }),
+  ])
+
+  const pL1 = objPunto('enemigos', 14 * 16, 10 * 16)
+  pL1.name = 'lobero'
+  const pL2 = objPunto('enemigos', 26 * 16, 16 * 16)
+  pL2.name = 'lobero'
+  const enemigos = capaObjetos('enemigos', [pL1, pL2])
+
+  exportar('yerma', [
+    capaTiles('suelo', suelo),
+    capaTiles('obstaculos', obstaculos),
+    capaTiles('decoracion', decoracion),
+    capaTiles('frente', frente),
+    spawns,
+    salidas,
+    capaObjetos('npcs', []),
+    enemigos,
+    capaObjetos('objetos', []),
+    capaObjetos('monedas', []),
+    capaObjetos('eventos', []),
+  ])
+}
+
+// ---------------------------------------------------------------------------
+// 11. AGUJA: Capitán de Ceniza, gatillo corona, 20 monedas, salida S (yerma)
+// ---------------------------------------------------------------------------
+function aguja() {
+  const rng = mulberry32(11011)
+  const suelo = capaVacia(0)
+  const obstaculos = capaVacia(0)
+  const decoracion = capaVacia(0)
+  const frente = capaVacia(0)
+
+  // fortaleza pálida
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++)
+      suelo[y * W + x] = rng() < 0.2 ? G.tierraPiedras : G.tablon
+
+  // murallas interiores
+  relleno(obstaculos, 6, 4, 2, 16, G.muro)
+  relleno(obstaculos, W - 8, 4, 2, 16, G.muro)
+
+  // trono al norte
+  relleno(suelo, 16, 4, 8, 4, G.tierraPiedras)
+  relleno(obstaculos, 16, 4, 8, 1, G.muro)
+
+  bordes(obstaculos, [{ lado: 'S', a: 18, b: 22 }], G.muro)
+
+  const spawns = spawnsEstandar(20, 18)
+  const salidas = capaObjetos('salidas', [
+    objRect('salidas', 18 * 16, (H - 1) * 16, 4 * 16, 16, { hacia: 'yerma', dir: 'S' }),
+  ])
+
+  const pCapitan = objPunto('enemigos', 20 * 16, 12 * 16)
+  pCapitan.name = 'capitan'
+  const enemigos = capaObjetos('enemigos', [pCapitan])
+
+  const pCorona = objPunto('eventos', 20 * 16, 6 * 16, { evento: 'corona' })
+  pCorona.name = 'corona'
+  const eventos = capaObjetos('eventos', [pCorona])
+
+  const monedas = capaObjetos('monedas', [
+    ...Array.from({ length: 20 }, (_, i) =>
+      objPunto('monedas', (10 + (i % 5) * 4) * 16, (16 + Math.floor(i / 5) * 2) * 16, { valor: 1 })
+    ),
+  ])
+
+  exportar('aguja', [
+    capaTiles('suelo', suelo),
+    capaTiles('obstaculos', obstaculos),
+    capaTiles('decoracion', decoracion),
+    capaTiles('frente', frente),
+    spawns,
+    salidas,
+    capaObjetos('npcs', []),
+    enemigos,
+    capaObjetos('objetos', []),
+    monedas,
+    eventos,
+  ])
+}
+
+// ---------------------------------------------------------------------------
+// 12. UMBAK: Monte Umbak, Forja Eterna, Custodio Pálido, gatillo final, salida O (yerma)
+// ---------------------------------------------------------------------------
+function umbak() {
+  const rng = mulberry32(12012)
+  const suelo = capaVacia(0)
+  const obstaculos = capaVacia(0)
+  const decoracion = capaVacia(0)
+  const frente = capaVacia(0)
+
+  // roca volcánica y ceniza
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++)
+      suelo[y * W + x] = rng() < 0.5 ? G.tierraPiedras : G.tierra
+
+  // paredes volcánicas
+  relleno(obstaculos, 6, 4, 4, 16, G.roca)
+  relleno(obstaculos, W - 10, 4, 4, 16, G.roca)
+
+  // Forja Eterna al norte
+  relleno(suelo, 16, 3, 8, 5, G.tablon)
+  relleno(obstaculos, 16, 3, 8, 1, G.muro)
+  relleno(obstaculos, 19, 5, 2, 2, G.agua) // la boca ardiente de la forja
+
+  bordes(obstaculos, [{ lado: 'O', a: 12, b: 16 }], G.roca)
+
+  const spawns = spawnsEstandar(14, 14)
+  const salidas = capaObjetos('salidas', [
+    objRect('salidas', 0, 12 * 16, 16, 4 * 16, { hacia: 'yerma', dir: 'O' }),
+  ])
+
+  const pCustodio = objPunto('enemigos', 20 * 16, 11 * 16)
+  pCustodio.name = 'custodio'
+  const enemigos = capaObjetos('enemigos', [pCustodio])
+
+  const pFinal = objPunto('eventos', 20 * 16, 6 * 16, { evento: 'final' })
+  pFinal.name = 'final'
+  const eventos = capaObjetos('eventos', [pFinal])
+
+  exportar('umbak', [
+    capaTiles('suelo', suelo),
+    capaTiles('obstaculos', obstaculos),
+    capaTiles('decoracion', decoracion),
+    capaTiles('frente', frente),
+    spawns,
+    salidas,
+    capaObjetos('npcs', []),
+    enemigos,
+    capaObjetos('objetos', []),
+    capaObjetos('monedas', []),
+    eventos,
+  ])
+}
+
+// ---------------------------------------------------------------------------
+// Ejecución de todos los mapas
+// ---------------------------------------------------------------------------
+console.log('Generando los 12 mapas de Corazón de Ceniza...')
+idObjeto = 1; vegaverde()
+idObjeto = 1; molino()
+idObjeto = 1; puente()
+idObjeto = 1; bosque()
+idObjeto = 1; rioclaro()
+idObjeto = 1; valoria()
+idObjeto = 1; minas()
+idObjeto = 1; cienagas()
+idObjeto = 1; refugio()
+idObjeto = 1; yerma()
+idObjeto = 1; aguja()
+idObjeto = 1; umbak()
+console.log('¡12 mapas generados con éxito!')
