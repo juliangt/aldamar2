@@ -91,9 +91,9 @@ describe('Combate', () => {
 
   it('ganarXp encadena varias subidas y sube ataque en niveles pares', () => {
     const c = new Combate(p, ['lobo'], new Rng(1))
-    expect(c.ganarXp(100)).toBe(3) // 30 + 60 + ... con nivel creciente
-    expect(p.nivel).toBe(4)
-    expect(p.stats.ataque).toBe(6) // +1 en niveles 2 y 4
+    expect(c.ganarXp(100)).toBe(2) // 30 (nivel 1) + 60 (nivel 2), sobran 10
+    expect(p.nivel).toBe(3)
+    expect(p.stats.ataque).toBe(5) // +1 solo al subir al nivel 2 (par)
   })
 
   it('huida con éxito y fracaso según el rng', () => {
@@ -102,12 +102,14 @@ describe('Combate', () => {
     expect(ok.resultado).toBe('huida')
 
     const ko = new Combate(p, ['lobo'], new RngGuion([0.6]))
+    ko.iniciarRonda()
     expect(ko.intentarHuida().huida).toBe(false)
     expect(ko.estado).toBe('menu')
   })
 
   it('no se puede huir de enemigos sin_huida', () => {
     const c = new Combate(p, ['capitan'], new Rng(1))
+    c.iniciarRonda()
     expect(c.puedeHuir()).toBe(false)
     const r = c.intentarHuida()
     expect(r.huida).toBe(false)
@@ -139,6 +141,7 @@ describe('Combate', () => {
     expect(c.resultado).toBe('victoria')
     expect(p.cantidad('cuerno_valoria')).toBe(0)
 
+    p.inventario.push('cuerno_valoria') // otro cuerno para la prueba del jefe
     const cJefe = new Combate(p, ['capitan'], new Rng(1))
     cJefe.iniciarRonda()
     cJefe.usarCuerno()
@@ -165,8 +168,8 @@ describe('Combate', () => {
     p.stats.vida = 30
     p.inventario.push('provisiones')
     const ev = c.usarObjeto('provisiones')
-    expect(ev.some((e) => e.tipo === 'curar' && e.cantidad === 5)).toBe(true)
-    expect(c.heroe().vida).toBe(35)
+    expect(ev.some((e) => e.tipo === 'curar' && e.cantidad === 15)).toBe(true)
+    expect(c.heroe().vida).toBe(45)
   })
 
   it('con varios enemigos vivos el estado es objetivo (elegir a quién golpear)', () => {
