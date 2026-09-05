@@ -92,29 +92,29 @@ antes del gatillo final (regla de la Fase E).
 
 ## Tareas
 
-- [ ] Plantillas Tiled por bioma (11 plantillas) para batir mapas rápido.
-- [ ] Producir/decorar los 39 mapas con el validador JSON↔mapa en verde.
-- [ ] Sprites y paletas: 7 héroes restantes, NPCs nuevos (Oldo, Perpetua,
+- [x] Plantillas Tiled por bioma (11 plantillas) para batir mapas rápido.
+- [x] Producir/decorar los 39 mapas con el validador JSON↔mapa en verde.
+- [x] Sprites y paletas: 7 héroes restantes, NPCs nuevos (Oldo, Perpetua,
       Iseo, Maruxa, Heraldo…), enemigos nuevos (mirlo, ahumado, gaviota,
       cangrejo, ahogado, viuda, sombra, eco_voz, morvath, capitanes).
-- [ ] Comandos especiales `marea` y `eco` (mismos botones y fórmula que
+- [x] Comandos especiales `marea` y `eco` (mismos botones y fórmula que
       `corazon`; Brasa simplemente no tiene botón).
-- [ ] Secretos: abejas (colmenar y alrededores), gaviota (costa), campanilla
+- [x] Secretos: abejas (colmenar y alrededores), gaviota (costa), campanilla
       (tras otorgarla), con sus `textos`, `texto_combate` y semillas.
-- [ ] Prueba integral por aventura (checklist abajo) + fixes.
-- [ ] Legado en cadena real: jugar Corazón → Brasa → Sal → Aguja en orden y
+- [x] Prueba integral por aventura (checklist abajo) + fixes.
+- [x] Legado en cadena real: jugar Corazón → Brasa → Sal → Aguja en orden y
       verificar eventos de cadena, fama y banderas exportadas/importadas.
 
 ## Criterios de aceptación (por aventura)
 
-- [ ] Jugable de prólogo a epílogo sin errores, con todas las decisiones en
+- [x] Jugable de prólogo a epílogo sin errores, con todas las decisiones en
       sus dos ramas y los jefes derrotados en las 3 dificultades (al menos
       una pasada completa en «camino» y puntos de control en las otras dos).
-- [ ] Los finales especiales con `requiere_flag` aparecen solo cuando procede
+- [x] Los finales especiales con `requiere_flag` aparecen solo cuando procede
       (cera de Bruna, farera, Alianza de las Cuatro).
-- [ ] Las puertas `requiere` de cada aventura bloquean con su `requiere_texto`.
-- [ ] Secretos encontrables (probando semillas fijas vía consola dev).
-- [ ] Validador JSON↔mapa: 0 desajustes en 39 mapas.
+- [x] Las puertas `requiere` de cada aventura bloquean con su `requiere_texto`.
+- [x] Secretos encontrables (probando semillas fijas vía consola dev).
+- [x] Validador JSON↔mapa: 0 desajustes en 39 mapas.
 
 ## Fuera de alcance (van en...)
 
