@@ -1,6 +1,9 @@
 // Config — Phaser móvil-first: 480×270 lógicos, FIT + CENTER_BOTH.
+// El canvas se supersamplea ×RES (resolucion.js) para verse nítido en
+// pantalla completa en PC; las coordenadas del juego siguen siendo 480×270.
 
 import Phaser from 'phaser'
+import { VISTA, RES } from './core/resolucion.js'
 import BootScene from './scenes/BootScene.js'
 import SelloScene from './scenes/SelloScene.js'
 import MenuScene from './scenes/MenuScene.js'
@@ -13,8 +16,8 @@ import EpilogoScene from './scenes/EpilogoScene.js'
 export const config = {
   type: Phaser.AUTO,
   parent: 'app',
-  width: 480,
-  height: 270,
+  width: VISTA.width * RES,
+  height: VISTA.height * RES,
   backgroundColor: '#000000',
   pixelArt: true,
   roundPixels: true,

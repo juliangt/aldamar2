@@ -3,6 +3,7 @@
 // Multitouch: cada zona es interactiva por sí misma (activePointers: 3).
 
 import Phaser from 'phaser'
+import { VISTA } from '../core/resolucion.js'
 
 const RADIO = 22
 const FUENTE = '"Press Start 2P", monospace'
@@ -16,7 +17,7 @@ export class MenuTactil {
     this.onAccion = onAccion || (() => {})
     this.onMenu = onMenu || (() => {})
 
-    const { width, height } = escena.scale
+    const { width, height } = VISTA
     this.raiz = escena.add.container(0, 0).setScrollFactor(0).setDepth(2000)
 
     this.crearDpad(56, height - 56)

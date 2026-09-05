@@ -5,6 +5,7 @@
 
 import Phaser from 'phaser'
 import Datos from '../core/Datos.js'
+import { aplicarRes } from '../core/resolucion.js'
 import { partida } from '../core/partida.js'
 import { extraerReclutar, extraerComprar } from '../core/Texto.js'
 import heroePng from '../assets/heroe.png'
@@ -69,7 +70,7 @@ export class WorldScene extends Phaser.Scene {
 
     const cam = this.cameras.main
     cam.setBounds(0, 0, mapa.widthInPixels, mapa.heightInPixels)
-    cam.setZoom(2)
+    aplicarRes(this, 2)
     cam.startFollow(this.jugador, true, 0.5, 0.5)
     cam.fadeIn(250)
     cam.once('camerafadeincomplete', () => this.mostrarDescripcion())

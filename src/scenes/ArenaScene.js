@@ -6,6 +6,7 @@ import Phaser from 'phaser'
 import Datos from '../core/Datos.js'
 import { partida } from '../core/partida.js'
 import Balance from '../core/Balance.js'
+import { VISTA, aplicarRes } from '../core/resolucion.js'
 
 const FUENTE = '"Press Start 2P", monospace'
 
@@ -20,7 +21,9 @@ export class ArenaScene extends Phaser.Scene {
   }
 
   create() {
-    const { width, height } = this.scale
+    aplicarRes(this)
+
+    const { width, height } = VISTA
     this.cameras.main.setBackgroundColor('#141414')
 
     this.add

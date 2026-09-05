@@ -5,6 +5,7 @@
 
 import Phaser from 'phaser'
 import Texto from '../core/Texto.js'
+import { VISTA } from '../core/resolucion.js'
 
 const FUENTE = '"Press Start 2P", monospace'
 const CAR_POR_SG = 30
@@ -12,7 +13,7 @@ const CAR_POR_SG = 30
 export class DialogBox {
   constructor(escena) {
     this.escena = escena
-    const { width, height } = escena.scale
+    const { width, height } = VISTA
     this.anchoCaja = width - 12
     this.altoCaja = 84
     this.x = 6

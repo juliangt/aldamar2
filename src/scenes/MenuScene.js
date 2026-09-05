@@ -3,6 +3,7 @@
 
 import Phaser from 'phaser'
 import { partida } from '../core/partida.js'
+import { VISTA, aplicarRes } from '../core/resolucion.js'
 
 export class MenuScene extends Phaser.Scene {
   constructor() {
@@ -10,7 +11,9 @@ export class MenuScene extends Phaser.Scene {
   }
 
   create() {
-    const { width, height } = this.scale
+    aplicarRes(this)
+
+    const { width, height } = VISTA
     const fuente = '"Press Start 2P", monospace'
 
     this.add

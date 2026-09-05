@@ -4,6 +4,7 @@
 
 import Phaser from 'phaser'
 import audio8 from '../core/Audio8.js'
+import { VISTA, aplicarRes } from '../core/resolucion.js'
 
 // Sello provisional: héroe con el Corazón al pecho y la espada clavada
 // al costado. Debe caber en 480×270 con la fuente pixel real.
@@ -48,7 +49,9 @@ export class SelloScene extends Phaser.Scene {
   }
 
   create() {
-    const { width, height } = this.scale
+    aplicarRes(this)
+
+    const { width, height } = VISTA
     const fuente = '"Press Start 2P", monospace'
 
     this._jingleSonando = false

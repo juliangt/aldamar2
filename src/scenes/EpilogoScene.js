@@ -5,6 +5,7 @@ import Phaser from 'phaser'
 import Datos from '../core/Datos.js'
 import { partida } from '../core/partida.js'
 import GameState from '../core/GameState.js'
+import { VISTA, aplicarRes } from '../core/resolucion.js'
 
 const FUENTE = '"Press Start 2P", monospace'
 
@@ -18,7 +19,9 @@ export class EpilogoScene extends Phaser.Scene {
   }
 
   create() {
-    const { width, height } = this.scale
+    aplicarRes(this)
+
+    const { width, height } = VISTA
     this.cameras.main.setBackgroundColor('#000000')
     const av = Datos.aventura(partida.aventura)
     const texto =

@@ -11,6 +11,7 @@ import { partida } from '../core/partida.js'
 import Combate from '../core/Combate.js'
 import Texto from '../core/Texto.js'
 import heroePng from '../assets/heroe.png'
+import { VISTA, aplicarRes } from '../core/resolucion.js'
 
 const FUENTE = '"Press Start 2P", monospace'
 const PALETA_ENEMIGO = { lobo: '#5a5a6a', espectro: '#8a9ab0', trasgo: '#7a8a4a', lobero: '#6a5a4a', capitan: '#9a6a5a', custodio: '#b0c0c8' }
@@ -32,7 +33,9 @@ export class BattleScene extends Phaser.Scene {
   }
 
   create() {
-    const { width, height } = this.scale
+    aplicarRes(this)
+
+    const { width, height } = VISTA
     this.scene.bringToTop() // dibujar sobre Mundo/Ui/Arena
     this.cameras.main.setBackgroundColor('#101418')
 
@@ -55,7 +58,7 @@ export class BattleScene extends Phaser.Scene {
 
   dibujarFondo(lugarId) {
     const g = this.add.graphics().setDepth(0)
-    const { width, height } = this.scale
+    const { width, height } = VISTA
     // Banda de suelo 1-bit por bioma (tono según el lugar).
     const tonos = {
       vegaverde: 0x1a2418, molino: 0x24200f, puente: 0x18202a, bosque: 0x14261c,
@@ -176,7 +179,7 @@ export class BattleScene extends Phaser.Scene {
   // ----------------------------------------------------------------- log
 
   crearLog() {
-    const { width, height } = this.scale
+    const { width, height } = VISTA
     this.logY = height - 66
     this.logFondo = this.add
       .rectangle(width / 2, this.logY + 26, width - 12, 52, 0x000000, 0.8)
@@ -223,7 +226,7 @@ export class BattleScene extends Phaser.Scene {
   // ---------------------------------------------------------------- botones
 
   crearBotones() {
-    const { width } = this.scale
+    const { width } = VISTA
     this.botones = {}
     const acciones = [
       ['atacar', 'ATACAR'],
@@ -286,9 +289,9 @@ export class BattleScene extends Phaser.Scene {
       .map(({ id, n }) => ({ id, etiqueta: `${Datos.item(c.aventura, id).nombre} ×${n}` }))
     if (!opciones.length) return null
     return new Promise((resolve) => {
-      const { width } = this.scale
+      const { width } = VISTA
       this.selectorObjeto = this.add.container(0, 0).setDepth(3200)
-      const velo = this.add.rectangle(width / 2, this.scale.height / 2, width, this.scale.height, 0, 0.6).setInteractive()
+      const velo = this.add.rectangle(width / 2, VISTA.height / 2, width, VISTA.height, 0, 0.6).setInteractive()
       this.selectorObjeto.add(velo)
       opciones.forEach((op, i) => {
         const y = 60 + i * 22

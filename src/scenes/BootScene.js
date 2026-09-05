@@ -3,6 +3,7 @@
 import Phaser from 'phaser'
 import fontUrl from '../assets/fonts/press-start-2p.ttf'
 import Datos from '../core/Datos.js'
+import { aplicarRes } from '../core/resolucion.js'
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -19,6 +20,8 @@ export class BootScene extends Phaser.Scene {
   }
 
   async create() {
+    aplicarRes(this)
+
     // Esperar a que la fuente esté realmente disponible para el canvas
     // (el loader de Phaser puede completarse antes de que el FontFace listo).
     try {

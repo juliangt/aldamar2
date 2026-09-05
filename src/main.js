@@ -9,6 +9,26 @@ import { Texto } from './core/Texto.js'
 import { Rng } from './core/Rng.js'
 import Datos from './core/Datos.js'
 import { partida } from './core/partida.js'
+import { RES, reajustarRes } from './core/resolucion.js'
+
+// Textos nítidos con supersampling: rasterizar a la resolución real del
+// canvas (resolution) en vez de dejar que el zoom de cámara escale una
+// textura de fuente minúscula.
+if (RES > 1) {
+  for (const proto of [
+    Phaser.GameObjects.GameObjectFactory.prototype,
+    Phaser.GameObjects.GameObjectCreator.prototype,
+  ]) {
+    const textOriginal = proto.text
+    if (!textOriginal) continue
+    proto.text = function (x, y, contenido, estilo) {
+      return textOriginal.call(this, x, y, contenido, {
+        resolution: RES,
+        ...estilo,
+      })
+    }
+  }
+}
 
 // Prueba manual (criterio de aceptación Fase 0): ver consola tras `npm run dev`.
 function pruebaManual() {
@@ -38,3 +58,7 @@ window.__ALDAMAR__ = { game, Texto, Rng, Datos, partida } // pruebas manuales de
 game.events.once(Phaser.Core.Events.READY, () => {
   audio8.ensure()
 })
+
+// Entrar/salir de pantalla completa o redimensionar la ventana: recalcular
+// el supersampling (tamaño de canvas, zoom de cámaras, resolución de textos).
+window.addEventListener('resize', () => reajustarRes(game))

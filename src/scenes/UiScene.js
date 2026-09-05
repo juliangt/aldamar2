@@ -8,6 +8,7 @@ import MenuTactil from '../ui/MenuTactil.js'
 import DialogBox from '../ui/DialogBox.js'
 import InventarioUI from '../ui/InventarioUI.js'
 import TiendaUI from '../ui/TiendaUI.js'
+import { VISTA, aplicarRes } from '../core/resolucion.js'
 
 const FUENTE = '"Press Start 2P", monospace'
 
@@ -22,6 +23,8 @@ export class UiScene extends Phaser.Scene {
   }
 
   create() {
+    aplicarRes(this)
+
     this.mundo = this.scene.get('World')
 
     this.crearHud()
@@ -125,7 +128,7 @@ export class UiScene extends Phaser.Scene {
 
   crearBanner(nombre) {
     if (!nombre) return
-    const { width } = this.scale
+    const { width } = VISTA
     const banda = this.add
       .rectangle(width / 2, 24, width, 20, 0x000000, 0.45)
       .setDepth(3000)
@@ -145,7 +148,7 @@ export class UiScene extends Phaser.Scene {
 
   toast(mensaje) {
     if (this.toastActual) this.toastActual.destroy()
-    const { width, height } = this.scale
+    const { width, height } = VISTA
     const fondo = this.add
       .rectangle(width / 2, height - 90, width - 40, 18, 0x000000, 0.7)
       .setDepth(3100)
@@ -164,7 +167,7 @@ export class UiScene extends Phaser.Scene {
   }
 
   crearPausa() {
-    const { width, height } = this.scale
+    const { width, height } = VISTA
     this.pausaVelo = this.add
       .rectangle(width / 2, height / 2, width, height, 0x000000, 0.6)
       .setDepth(4000)

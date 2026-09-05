@@ -2,12 +2,14 @@
 // ventana con borde 1-bit, fila de título, botón de cierre y helpers para
 // filas/botones. El bloqueo modal del mundo lo gestiona UiScene.
 
+import { VISTA } from '../core/resolucion.js'
+
 const FUENTE = '"Press Start 2P", monospace'
 
 export class PanelUI {
   constructor(escena, { titulo, ancho = 440, alto = 230 } = {}) {
     this.escena = escena
-    const { width, height } = escena.scale
+    const { width, height } = VISTA
     this.ancho = ancho
     this.alto = alto
     this.x = (width - ancho) / 2
