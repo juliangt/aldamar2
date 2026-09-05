@@ -39,8 +39,8 @@ export class BootScene extends Phaser.Scene {
     let lugares = 0
     let enemigos = 0
     for (const av of aventuras) {
-      lugares += av.lugares.length
-      enemigos += Object.keys(av.enemigos).length
+      lugares += Array.isArray(av.lugares) ? av.lugares.length : Object.keys(av.lugares || {}).length
+      enemigos += Object.keys(av.enemigos || {}).length
     }
     const rasgos = Object.keys(Datos.rasgos).length
     const dificultades = Object.keys(Datos.dificultades).length

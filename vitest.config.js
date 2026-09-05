@@ -4,5 +4,8 @@ export default defineConfig({
   test: {
     environment: 'node',
     setupFiles: ['./tests/setup.js'],
+    include: ['tests/**/*.{test,spec}.js'],
+    exclude: ['**/node_modules/**', '**/dist/**', 'e2e/**'],
   },
 })
+

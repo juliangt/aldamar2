@@ -8,9 +8,15 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:unit": "vitest run tests/unit tests/Audio8.test.js tests/Balance*.test.js tests/Combate.test.js tests/Datos.test.js tests/GameState.test.js tests/Legacy.test.js tests/Pantalla.test.js tests/Resolucion.test.js tests/Rng.test.js tests/Sprites.test.js tests/Texto.test.js tests/ValidadorMapa.test.js tests/BattleSceneTransitions.test.js",
+    "test:integration": "vitest run tests/integration tests/AventurasIntegracion.test.js tests/EventEngine.test.js tests/Finales.test.js tests/IntegracionFaseF.test.js tests/JefesYRequisitos.test.js tests/Secretos.test.js",
+    "test:validate": "node tools/validar-datos.js",
+    "test:e2e": "playwright test",
+    "test:all": "npm run test:validate && npm test"
   },
   "devDependencies": {
+    "@playwright/test": "^1.50.1",
     "vite": "^8.2.2",
     "vitest": "^5.0.0"
   },

@@ -90,4 +90,41 @@ describe('Audio8 — Síntesis y gestión sonora', () => {
       audio.detenerAmbiente(false)
     }).not.toThrow()
   })
+
+  it('todos los biomas tienen un tema medieval configurado y coherente', async () => {
+    const { TEMAS_MEDIEVALES, NOTAS_FREQ } = await import('../src/core/Audio8.js')
+    const biomas = ['huerto', 'camino', 'bosque', 'aldea', 'mina', 'cienaga', 'costa', 'yermos', 'aguja']
+    for (const b of biomas) {
+      const tema = TEMAS_MEDIEVALES[b]
+      expect(tema).toBeDefined()
+      expect(tema.nombre).toBeDefined()
+      expect(tema.stepSec).toBeGreaterThan(0.1)
+      expect(tema.longitud).toBeGreaterThan(0)
+      expect(tema.laud).toHaveLength(tema.longitud)
+      expect(tema.bajo).toHaveLength(tema.longitud)
+      expect(tema.flauta.length).toBeGreaterThan(0)
+      expect(tema.flautaPorPaso).toBeDefined()
+
+      // Verificar que todas las notas del tema existen en NOTAS_FREQ
+      for (const nota of tema.laud) {
+        if (nota !== '_') expect(NOTAS_FREQ[nota]).toBeDefined()
+      }
+      for (const nota of tema.bajo) {
+        if (nota !== '_') expect(NOTAS_FREQ[nota]).toBeDefined()
+      }
+      for (const f of tema.flauta) {
+        expect(NOTAS_FREQ[f.n]).toBeDefined()
+        expect(f.s).toBeLessThan(tema.longitud)
+        expect(f.d).toBeGreaterThan(0)
+      }
+    }
+  })
+
+  it('iniciarAmbiente y detenerAmbiente gestionan el estado del tema y bioma', () => {
+    audio.iniciarAmbiente('bosque')
+    expect(audio.biomaActual).toBe('bosque')
+    audio.detenerAmbiente(false)
+    expect(audio.musicaTimer).toBeNull()
+  })
 })
+
