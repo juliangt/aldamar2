@@ -3,52 +3,42 @@ import fs from 'node:fs'
 import ValidadorMapa from '../src/core/ValidadorMapa.js'
 import Datos from '../src/core/Datos.js'
 
-describe('ValidadorMapa — coherencia mapa↔JSON de Corazón de Ceniza (Fase E)', () => {
-  const aventuraId = 'corazon_ceniza'
-  const aventura = Datos.aventura(aventuraId)
-  const lugares = Object.keys(aventura.lugares)
+describe('ValidadorMapa — coherencia mapa↔JSON de las 4 aventuras (Fase G)', () => {
+  const aventurasEsperadas = {
+    corazon_ceniza: 12,
+    brasa_vegaverde: 5,
+    sal_y_ceniza: 9,
+    aguja_sin_sombra: 13,
+  }
 
-  it('los 12 lugares de Corazón de Ceniza están definidos en el JSON de aventura', () => {
-    expect(lugares).toHaveLength(12)
-    expect(lugares).toEqual([
-      'vegaverde',
-      'molino',
-      'puente',
-      'bosque',
-      'rioclaro',
-      'valoria',
-      'minas',
-      'cienagas',
-      'refugio',
-      'yerma',
-      'aguja',
-      'umbak',
-    ])
+  it('las 4 aventuras suman exactamente 39 lugares en los JSON de aventura', () => {
+    let totalLugares = 0
+    for (const [avId, cant] of Object.entries(aventurasEsperadas)) {
+      const av = Datos.aventura(avId)
+      const lugares = Object.keys(av.lugares)
+      expect(lugares).toHaveLength(cant)
+      totalLugares += lugares.length
+    }
+    expect(totalLugares).toBe(39)
   })
 
-  for (const lugarId of [
-    'vegaverde',
-    'molino',
-    'puente',
-    'bosque',
-    'rioclaro',
-    'valoria',
-    'minas',
-    'cienagas',
-    'refugio',
-    'yerma',
-    'aguja',
-    'umbak',
-  ]) {
-    it(`el mapa de ${lugarId} no tiene ninguna incoherencia con el JSON`, () => {
-      const rutaMapa = `public/maps/corazon_ceniza/${lugarId}.json`
-      expect(fs.existsSync(rutaMapa)).toBe(true)
+  for (const [avId, cant] of Object.entries(aventurasEsperadas)) {
+    describe(`Aventura: ${avId} (${cant} mapas)`, () => {
+      const av = Datos.aventura(avId)
+      const lugares = Object.keys(av.lugares)
 
-      const mapaJson = JSON.parse(fs.readFileSync(rutaMapa, 'utf-8'))
-      const lugarDato = Datos.lugar(aventuraId, lugarId)
+      for (const lugarId of lugares) {
+        it(`[${avId}] el mapa de «${lugarId}» no tiene incoherencias con el JSON`, () => {
+          const rutaMapa = `public/maps/${avId}/${lugarId}.json`
+          expect(fs.existsSync(rutaMapa)).toBe(true)
 
-      const avisos = ValidadorMapa.validar(lugarId, lugarDato, mapaJson, aventuraId)
-      expect(avisos).toEqual([])
+          const mapaJson = JSON.parse(fs.readFileSync(rutaMapa, 'utf-8'))
+          const lugarDato = Datos.lugar(avId, lugarId)
+
+          const avisos = ValidadorMapa.validar(lugarId, lugarDato, mapaJson, avId)
+          expect(avisos).toEqual([])
+        })
+      }
     })
   }
 
@@ -77,7 +67,7 @@ describe('ValidadorMapa — coherencia mapa↔JSON de Corazón de Ceniza (Fase E
       ],
     }
 
-    const avisos = ValidadorMapa.validar('test', lugarDatoFalso, mapaVacio, aventuraId)
+    const avisos = ValidadorMapa.validar('test', lugarDatoFalso, mapaVacio, 'corazon_ceniza')
     expect(avisos.some((a) => a.includes('NPC declarado sin pintar'))).toBe(true)
     expect(avisos.some((a) => a.includes('enemigo declarado sin pintar'))).toBe(true)
     expect(avisos.some((a) => a.includes('enemigo en el mapa sin declarar'))).toBe(true)
