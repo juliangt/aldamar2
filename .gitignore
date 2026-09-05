@@ -25,6 +25,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+playwright-report/
 
 # Environment variables & local configuration
 .env
