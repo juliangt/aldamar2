@@ -1,10 +1,6 @@
 name: CI Pipeline
 
 on:
-  push:
-    branches: [main, master]
-  pull_request:
-    branches: [main, master]
   workflow_dispatch:
     inputs:
       stage:
@@ -32,7 +28,6 @@ jobs:
     name: 'Stage 1: Validar Sintaxis y JSON'
     runs-on: ubuntu-latest
     if: |
-      github.event_name != 'workflow_dispatch' ||
       github.event.inputs.stage == 'all' ||
       github.event.inputs.stage == 'validate'
     steps:
@@ -58,8 +53,8 @@ jobs:
     needs: [validate]
     if: |
       always() &&
-      (github.event_name != 'workflow_dispatch' || github.event.inputs.stage == 'all' || github.event.inputs.stage == 'unit') &&
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.stage == 'unit' || needs.validate.result == 'success')
+      (github.event.inputs.stage == 'unit' ||
+       (github.event.inputs.stage == 'all' && needs.validate.result == 'success'))
     steps:
       - uses: actions/checkout@v4
 
@@ -83,8 +78,8 @@ jobs:
     needs: [unit]
     if: |
       always() &&
-      (github.event_name != 'workflow_dispatch' || github.event.inputs.stage == 'all' || github.event.inputs.stage == 'integration') &&
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.stage == 'integration' || needs.unit.result == 'success')
+      (github.event.inputs.stage == 'integration' ||
+       (github.event.inputs.stage == 'all' && needs.unit.result == 'success'))
     steps:
       - uses: actions/checkout@v4
 
@@ -108,8 +103,8 @@ jobs:
   #   needs: [integration]
   #   if: |
   #     always() &&
-  #     (github.event_name != 'workflow_dispatch' || github.event.inputs.stage == 'all' || github.event.inputs.stage == 'e2e') &&
-  #     (github.event_name == 'workflow_dispatch' && github.event.inputs.stage == 'e2e' || needs.integration.result == 'success')
+  #     (github.event.inputs.stage == 'e2e' ||
+  #      (github.event.inputs.stage == 'all' && needs.integration.result == 'success'))
   #   steps:
   #     - uses: actions/checkout@v4
   #
@@ -144,8 +139,8 @@ jobs:
     needs: [validate]
     if: |
       always() &&
-      (github.event_name != 'workflow_dispatch' || github.event.inputs.stage == 'all' || github.event.inputs.stage == 'build') &&
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.stage == 'build' || needs.validate.result == 'success')
+      (github.event.inputs.stage == 'build' ||
+       (github.event.inputs.stage == 'all' && needs.validate.result == 'success'))
     steps:
       - uses: actions/checkout@v4
 
