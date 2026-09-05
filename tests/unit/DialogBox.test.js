@@ -1,0 +1,168 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+
+vi.mock('phaser', () => ({
+  default: {
+    GameObjects: {
+      Text: class Text {},
+      Container: class Container {},
+    },
+  },
+}))
+
+vi.mock('../../src/core/Audio8.js', () => ({
+  audio8: {
+    sfx: vi.fn(),
+  },
+}))
+
+import DialogBox from '../../src/ui/DialogBox.js'
+import { audio8 } from '../../src/core/Audio8.js'
+
+function crearMockEscena() {
+  const keyboardListeners = new Map()
+  let timerCb = null
+
+  const crearElemento = (props = {}) => ({
+    setPosition: vi.fn().mockReturnThis(),
+    setSize: vi.fn().mockReturnThis(),
+    setDepth: vi.fn().mockReturnThis(),
+    setVisible: vi.fn().mockReturnThis(),
+    setStrokeStyle: vi.fn().mockReturnThis(),
+    setOrigin: vi.fn().mockReturnThis(),
+    setText: vi.fn().mockReturnThis(),
+    setColor: vi.fn().mockReturnThis(),
+    setInteractive: vi.fn().mockReturnThis(),
+    on: vi.fn().mockReturnThis(),
+    destroy: vi.fn(),
+    input: { enabled: true, hitArea: { setSize: vi.fn() } },
+    width: 16,
+    height: 8,
+    list: [],
+    add: vi.fn(function (items) {
+      if (Array.isArray(items)) this.list.push(...items)
+      else this.list.push(items)
+      return this
+    }),
+    ...props,
+  })
+
+  return {
+    add: {
+      container: vi.fn(() => crearElemento()),
+      zone: vi.fn(() => crearElemento()),
+      rectangle: vi.fn(() => crearElemento()),
+      text: vi.fn(() => crearElemento()),
+    },
+    input: {
+      keyboard: {
+        on: vi.fn((ev, cb) => keyboardListeners.set(ev, cb)),
+        trigger: (ev) => keyboardListeners.get(ev)?.(),
+      },
+    },
+    events: {
+      on: vi.fn(),
+      emit: vi.fn(),
+    },
+    time: {
+      addEvent: vi.fn((opts) => {
+        timerCb = opts.callback
+        return { remove: vi.fn() }
+      }),
+      tick: () => timerCb?.(),
+    },
+    tweens: {
+      add: vi.fn(() => ({ remove: vi.fn() })),
+    },
+  }
+}
+
+describe('DialogBox Unit Tests', () => {
+  let escena
+  let dialog
+
+  beforeEach(() => {
+    escena = crearMockEscena()
+    dialog = new DialogBox(escena)
+  })
+
+  it('se inicializa oculto y registra listeners de teclado', () => {
+    expect(dialog.contenedor.setVisible).toHaveBeenCalledWith(false)
+    expect(escena.input.keyboard.on).toHaveBeenCalledWith('keydown-SPACE', expect.any(Function))
+    expect(escena.input.keyboard.on).toHaveBeenCalledWith('keydown-ENTER', expect.any(Function))
+    expect(escena.input.keyboard.on).toHaveBeenCalledWith('keydown-E', expect.any(Function))
+  })
+
+  it('decir() muestra contenedor, emite dialogo-abierto e inicia typewriter', () => {
+    dialog.decir('Hola mundo')
+
+    expect(dialog.abierto).toBe(true)
+    expect(dialog.contenedor.setVisible).toHaveBeenCalledWith(true)
+    expect(escena.events.emit).toHaveBeenCalledWith('dialogo-abierto')
+    expect(escena.time.addEvent).toHaveBeenCalled()
+    expect(dialog.escribiendo).toBe(true)
+  })
+
+  it('avanzar() durante escritura completa la página instantáneamente (primer tap)', () => {
+    dialog.decir('Texto largo de prueba')
+    expect(dialog.escribiendo).toBe(true)
+
+    dialog.avanzar() // 1er tap
+    expect(dialog.escribiendo).toBe(false)
+    expect(dialog.indicador.setVisible).toHaveBeenCalledWith(true)
+  })
+
+  it('avanzar() tras completar página avanza a la siguiente o cierra el diálogo', async () => {
+    let resuelto = false
+    const promise = dialog.decir('Pagina 1').then(() => {
+      resuelto = true
+    })
+
+    dialog.avanzar() // completa escritura
+    expect(resuelto).toBe(false)
+
+    dialog.avanzar() // cierra diálogo
+    await promise
+
+    expect(resuelto).toBe(true)
+    expect(dialog.abierto).toBe(false)
+    expect(escena.events.emit).toHaveBeenCalledWith('dialogo-cerrado')
+  })
+
+  it('atajos de teclado (ENTER/SPACE/E) avanzan el diálogo', () => {
+    dialog.decir('Prueba de teclas')
+    expect(dialog.escribiendo).toBe(true)
+
+    escena.input.keyboard.trigger('keydown-SPACE')
+    expect(dialog.escribiendo).toBe(false)
+  })
+
+  it('pregunta() crea opciones y resuelve el índice elegido al pulsar', async () => {
+    const promise = dialog.pregunta(['Opción A', 'Opción B'])
+
+    expect(dialog.abierto).toBe(true)
+    expect(dialog.botones).toHaveLength(2)
+
+    // Simular click en la opción 1 (segunda opción)
+    const grupoOpcionB = dialog.botones[1]
+    const zonaB = grupoOpcionB[0]
+    const clickHandler = zonaB.on.mock.calls.find((c) => c[0] === 'pointerdown')?.[1]
+    expect(clickHandler).toBeDefined()
+
+    clickHandler()
+    const seleccion = await promise
+
+    expect(seleccion).toBe(1)
+    expect(audio8.sfx).toHaveBeenCalledWith('confirmar')
+    expect(dialog.abierto).toBe(false)
+    expect(escena.events.emit).toHaveBeenCalledWith('dialogo-cerrado')
+  })
+
+  it('relayout() preserva texto pendiente y ajusta geometría', () => {
+    dialog.decir('Texto largo que necesita ser re-paginado tras girar el dispositivo')
+    dialog.relayout()
+
+    expect(dialog.anchoCaja).toBeGreaterThan(0)
+    expect(dialog.altoCaja).toBeGreaterThan(0)
+    expect(dialog.paginas.length).toBeGreaterThan(0)
+  })
+})
