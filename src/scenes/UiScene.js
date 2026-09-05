@@ -89,6 +89,7 @@ export class UiScene extends Phaser.Scene {
     this.hudPv.setText(`PV ${partida.stats.vida}/${partida.stats.vidaMax}`)
     this.hudAtaque.setText(`ATQ ${partida.ataqueEfectivo()} DEF ${partida.defensa()}`)
     this.hudMonedas.setText(`● ${partida.monedas}`)
+    this.hudGrieta.setText(`✚ ${partida.grieta}/100 Nv${partida.nivel}`)
   }
 
   crearHud() {
@@ -111,6 +112,13 @@ export class UiScene extends Phaser.Scene {
         fontFamily: FUENTE,
         fontSize: '8px',
         color: '#e0c04a',
+      })
+      .setDepth(3000)
+    this.hudGrieta = this.add
+      .text(8, 44, `✚ ${partida.grieta}/100 Nv${partida.nivel}`, {
+        fontFamily: FUENTE,
+        fontSize: '8px',
+        color: '#b07a9a',
       })
       .setDepth(3000)
   }

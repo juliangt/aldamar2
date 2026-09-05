@@ -42,6 +42,19 @@ export class MenuScene extends Phaser.Scene {
     jugar.on('pointerout', () => jugar.setScale(1))
     jugar.on('pointerdown', () => this.empezar())
 
+    // Entrada oculta de Fase D: arena de pruebas (solo dev).
+    this.add
+      .text(8, height - 12, '≡', {
+        fontFamily: fuente,
+        fontSize: '8px',
+        color: '#555555',
+      })
+      .setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => {
+        if (!partida.aventura) partida.nuevaPartida('corazon_ceniza', 'tilo')
+        this.scene.start('Arena')
+      })
+
     this.input.keyboard.once('keydown-ENTER', () => this.empezar())
 
     // Prueba manual de multitouch (activePointers: 3).

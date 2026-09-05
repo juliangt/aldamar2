@@ -4727,30 +4727,6 @@
       "name": "salidas",
       "objects": [
         {
-          "id": 6,
-          "name": "",
-          "height": 64,
-          "width": 16,
-          "ellipse": false,
-          "rotation": 0,
-          "type": "",
-          "visible": true,
-          "x": 0,
-          "y": 192,
-          "properties": [
-            {
-              "name": "hacia",
-              "type": "string",
-              "value": "molino"
-            },
-            {
-              "name": "dir",
-              "type": "string",
-              "value": "O"
-            }
-          ]
-        },
-        {
           "id": 7,
           "name": "",
           "height": 16,
@@ -4765,34 +4741,12 @@
             {
               "name": "hacia",
               "type": "string",
-              "value": "rioclaro"
+              "value": "puente"
             },
             {
               "name": "dir",
               "type": "string",
               "value": "S"
-            }
-          ]
-        },
-        {
-          "id": 101,
-          "height": 16,
-          "width": 48,
-          "x": 288,
-          "y": 0,
-          "rotation": 0,
-          "type": "",
-          "visible": true,
-          "properties": [
-            {
-              "name": "hacia",
-              "type": "string",
-              "value": "bosque"
-            },
-            {
-              "name": "dir",
-              "type": "string",
-              "value": "N"
             }
           ]
         }
@@ -4807,7 +4761,20 @@
       "draworder": "topdown",
       "id": 0,
       "name": "npcs",
-      "objects": [],
+      "objects": [
+        {
+          "id": 111,
+          "name": "sylvana",
+          "point": true,
+          "width": 0,
+          "height": 0,
+          "rotation": 0,
+          "type": "",
+          "visible": true,
+          "x": 208,
+          "y": 176
+        }
+      ],
       "opacity": 1,
       "type": "objectgroup",
       "visible": true,
@@ -4820,16 +4787,16 @@
       "name": "enemigos",
       "objects": [
         {
-          "id": 100,
-          "name": "lobo",
+          "id": 110,
+          "name": "espectro",
           "point": true,
           "width": 0,
           "height": 0,
           "rotation": 0,
           "type": "",
           "visible": true,
-          "x": 400,
-          "y": 224
+          "x": 336,
+          "y": 208
         }
       ],
       "opacity": 1,
@@ -4842,7 +4809,32 @@
       "draworder": "topdown",
       "id": 0,
       "name": "objetos",
-      "objects": [],
+      "objects": [
+        {
+          "id": 112,
+          "name": "hierbas",
+          "point": true,
+          "width": 0,
+          "height": 0,
+          "rotation": 0,
+          "type": "",
+          "visible": true,
+          "x": 96,
+          "y": 272
+        },
+        {
+          "id": 113,
+          "name": "antorcha",
+          "point": true,
+          "width": 0,
+          "height": 0,
+          "rotation": 0,
+          "type": "",
+          "visible": true,
+          "x": 544,
+          "y": 368
+        }
+      ],
       "opacity": 1,
       "type": "objectgroup",
       "visible": true,
