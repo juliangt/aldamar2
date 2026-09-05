@@ -25,6 +25,7 @@ export class WorldScene extends Phaser.Scene {
     this.entrada = data.entrada ?? partida.entrada // N/S/E/O o null (centro)
     this.transicionando = false
     this.pausado = false
+    this.graciaHuida = 0
   }
 
   preload() {
@@ -62,6 +63,7 @@ export class WorldScene extends Phaser.Scene {
     this.crearSalidas(mapa)
     this.crearNpcs(mapa, lugar)
     this.crearPickups(mapa, lugar)
+    this.crearEnemigos(mapa, lugar)
     this.crearDescanso(mapa, lugar)
     this.validarObjetos(mapa, lugar)
 
@@ -94,6 +96,8 @@ export class WorldScene extends Phaser.Scene {
       partida.guardar()
       this.ui.toast('(dev: inventario de prueba)')
     })
+
+    this.registrarWake()
   }
 
   // ------------------------------------------------------------------ jugador
@@ -368,6 +372,124 @@ export class WorldScene extends Phaser.Scene {
   ctxDialogo() {
     const pj = Datos.aventura(this.aventura).personajes[partida.heroe] || {}
     return { trato: pj.trato, nombre: pj.nombre }
+  }
+
+  // ------------------------------------------------------ Fase D: combate
+
+  // Textura de enemigo en el mundo (misma clave que usa BattleScene).
+  texturaEnemigo(id) {
+    const clave = `enemigo:${id}`
+    if (this.textures.exists(clave)) return clave
+    const colores = {
+      lobo: '#5a5a6a', espectro: '#8a9ab0', trasgo: '#7a8a4a',
+      lobero: '#6a5a4a', capitan: '#9a6a5a', custodio: '#b0c0c8',
+    }
+    const cv = document.createElement('canvas')
+    cv.width = 16
+    cv.height = 16
+    const g = cv.getContext('2d')
+    const color = colores[id] || '#7a7a8a'
+    g.fillStyle = color
+    g.fillRect(4, 2, 8, 6)
+    g.fillStyle = '#c03030'
+    g.fillRect(5, 4, 2, 2)
+    g.fillRect(9, 4, 2, 2)
+    g.fillStyle = color
+    g.fillRect(3, 8, 10, 6)
+    g.fillStyle = '#0a0a0a'
+    g.fillRect(4, 14, 3, 2)
+    g.fillRect(9, 14, 3, 2)
+    this.textures.addCanvas(clave, cv)
+    return clave
+  }
+
+  // Los enemigos del lugar son un grupo: tocar cualquiera inicia un combate
+  // contra todos los vivos (trasgo ×2 en minas = multi-enemigo).
+  crearEnemigos(mapa, lugar) {
+    this.enemigosMapa = []
+    const capa = mapa.getObjectLayer('enemigos')
+    if (!capa) return
+    for (const o of capa.objects) {
+      const id = o.name
+      if (!Datos.enemigo(this.aventura, id)) continue
+      const dato = Datos.enemigo(this.aventura, id)
+      const escala = dato.sin_huida || (dato.fases && dato.fases.length) ? 1.5 : 1
+      const sprite = this.add.sprite(o.x, o.y, this.texturaEnemigo(id)).setOrigin(0.5, 1)
+      sprite.setDepth(o.y)
+      sprite.setScale(escala)
+      this.tweens.add({
+        targets: sprite,
+        x: o.x + 3,
+        duration: 900,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.inOut',
+      })
+      this.physics.add.existing(sprite, true)
+      sprite.body.setSize(12, 10).setOffset(2, 6)
+      const enemigo = { id, sprite, x: o.x, y: o.y }
+      this.physics.add.overlap(this.jugador, sprite, () => this.tocarEnemigo(enemigo))
+      this.enemigosMapa.push(enemigo)
+    }
+  }
+
+  tocarEnemigo(enemigo) {
+    if (
+      this.transicionando ||
+      this.pausado ||
+      this.ui?.modal ||
+      this.graciaHuida > this.time.now ||
+      this.scene.isSleeping('Battle')
+    )
+      return
+    this.transicionando = true
+    const vivos = this.enemigosMapa.filter((e) => !e.derrotado)
+    if (!vivos.length) return
+    this.scene.sleep('Ui')
+    this.scene.sleep('World')
+    this.scene.launch('Battle', {
+      enemigos: vivos.map((e) => e.id),
+      origen: 'World',
+      lugar: this.lugarId,
+    })
+  }
+
+  // La BattleScene despierta al mundo con {resultado}: victoria retira al
+  // grupo; huida reposiciona al jugador fuera de contacto con 1,5 s de gracia.
+  registrarWake() {
+    this.events.on(Phaser.Scenes.Events.WAKE, (sys, data) => {
+      this.transicionando = false
+      this.scene.wake('Ui')
+      this.ui?.refrescarHud()
+      if (!data || !data.resultado) return
+      if (data.resultado === 'victoria') {
+        for (const e of this.enemigosMapa || []) {
+          e.derrotado = true
+          e.sprite.destroy()
+        }
+        this.enemigosMapa = this.enemigosMapa.filter((e) => !e.derrotado)
+      } else if (data.resultado === 'huida') {
+        // Empujar al jugador lejos del enemigo más cercano + gracia.
+        let masCercano = null
+        let mejorD = Infinity
+        for (const e of this.enemigosMapa || []) {
+          const d = Math.hypot(e.sprite.x - this.jugador.x, e.sprite.y - this.jugador.y)
+          if (d < mejorD) {
+            mejorD = d
+            masCercano = e
+          }
+        }
+        if (masCercano) {
+          const dx = this.jugador.x - masCercano.sprite.x
+          const dy = this.jugador.y - masCercano.sprite.y
+          const len = Math.hypot(dx, dy) || 1
+          this.jugador.x += (dx / len) * 40
+          this.jugador.y += (dy / len) * 40
+        }
+        this.graciaHuida = this.time.now + 1500
+        this.ui?.toast('Escapas por los pelos.')
+      }
+    })
   }
 
   // Cama/fogón pintado en la capa «descanso»: punto interactivo en lugares

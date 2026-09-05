@@ -204,16 +204,17 @@ export class Combate {
     const subida = Balance.corrupcion(efecto.corrupcion_coste, this.dificultad)
     p.grieta = Math.min(100, p.grieta + subida)
     ev.push({ tipo: 'grieta', valor: p.grieta, subida })
+    if (p.grieta >= 100) {
+      this.estado = 'fin'
+      this.resultado = 'caida'
+      ev.push({ tipo: 'caida' })
+      return ev
+    }
     if (enemigo.vida <= 0) {
       enemigo.vivo = false
       ev.push({ tipo: 'muerte', lado: 'enemigos', idx: this.indiceDe('enemigos', enemigo), nombre: enemigo.nombre })
     }
     ev.push(...this.chequearVictoria())
-    if (p.grieta >= 100 && this.estado !== 'fin') {
-      this.estado = 'fin'
-      this.resultado = 'caida'
-      ev.push({ tipo: 'caida' })
-    }
     return ev
   }
 
