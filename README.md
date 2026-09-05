@@ -202,7 +202,7 @@ flowchart TD
 
 ## Pipeline de CI
 
-El flujo de trabajo [ci.yml](.github/workflows/ci.yml) ejecuta un pipeline multi-stage en cada push y pull request sobre Node 22, con cancelación de ejecuciones obsoletas:
+El flujo de trabajo [ci.yml](.github/workflows/ci.yml) define un pipeline multi-stage sobre Node 22 que se dispara **manualmente** desde la pestaña *Actions* (`workflow_dispatch`), con cancelación de ejecuciones obsoletas de un mismo stage:
 
 | Stage | Job | Qué hace |
 |:-----:|-----|----------|
@@ -212,7 +212,7 @@ El flujo de trabajo [ci.yml](.github/workflows/ci.yml) ejecuta un pipeline multi
 | 4 | `e2e` | Tests E2E con Playwright + Chromium — *temporalmente desactivado en CI; ejecutable en local con `npm run test:e2e`* |
 | 5 | `build` | Compilación de producción con Vite; el artefacto `dist` se sube y se conserva 14 días |
 
-Además admite `workflow_dispatch` para lanzar un stage concreto (o todos) a demanda, y la suite completa corre en local con `npm run test:all`.
+Al lanzarlo manualmente se elige si ejecutar el pipeline completo (`all`) o un stage concreto; seleccionar un stage individual lo ejecuta directamente, sin esperar a sus dependencias. La suite completa corre en local con `npm run test:all`.
 
 ---
 
