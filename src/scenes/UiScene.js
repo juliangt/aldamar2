@@ -6,6 +6,7 @@ import Phaser from 'phaser'
 import { partida } from '../core/partida.js'
 import MenuTactil from '../ui/MenuTactil.js'
 import DialogBox from '../ui/DialogBox.js'
+import SelectorOpciones from '../ui/SelectorOpciones.js'
 import InventarioUI from '../ui/InventarioUI.js'
 import TiendaUI from '../ui/TiendaUI.js'
 import { VISTA, aplicarRes } from '../core/resolucion.js'
@@ -35,6 +36,9 @@ export class UiScene extends Phaser.Scene {
     // La DialogBox es modal: silencia el táctil y para al jugador.
     this.dialogo.escena.events.on('dialogo-abierto', () => this.setModal(true))
     this.dialogo.escena.events.on('dialogo-cerrado', () => this.setModal(false))
+
+    // Selector de decisiones (Fase E): mismo contrato modal que DialogBox.
+    this.selector = new SelectorOpciones(this)
 
     this.menuTactil = new MenuTactil(this, {
       onAccion: () => this.mundo && this.mundo.ejecutarAccion(),
@@ -86,6 +90,11 @@ export class UiScene extends Phaser.Scene {
 
   pregunta(opciones) {
     return this.dialogo.pregunta(opciones)
+  }
+
+  // Decisión con opciones {titulo, detalle} (Fase E): resuelve la opción.
+  elegir(pregunta, opciones, ctx) {
+    return this.selector.elegir(pregunta, opciones, ctx)
   }
 
   refrescarHud() {
