@@ -3,6 +3,7 @@
 // zonas interactivas con scrollFactor(0) no reciben input bajo zoom ≠ 1.
 
 import Phaser from 'phaser'
+import Datos from '../core/Datos.js'
 import { partida } from '../core/partida.js'
 import MenuTactil from '../ui/MenuTactil.js'
 import DialogBox from '../ui/DialogBox.js'
@@ -10,6 +11,7 @@ import SelectorOpciones from '../ui/SelectorOpciones.js'
 import InventarioUI from '../ui/InventarioUI.js'
 import TiendaUI from '../ui/TiendaUI.js'
 import { VISTA, aplicarRes } from '../core/resolucion.js'
+import { audio8 } from '../core/Audio8.js'
 
 const FUENTE = '"Press Start 2P", monospace'
 
@@ -43,6 +45,7 @@ export class UiScene extends Phaser.Scene {
     this.menuTactil = new MenuTactil(this, {
       onAccion: () => this.mundo && this.mundo.ejecutarAccion(),
       onMenu: () => this.abrirInventario(),
+      onPausa: () => this.mundo && this.mundo.alternarPausa(),
     })
 
     this.inventario = new InventarioUI(this, {
@@ -98,14 +101,34 @@ export class UiScene extends Phaser.Scene {
   }
 
   refrescarHud() {
-    this.hudPv.setText(`PV ${partida.stats.vida}/${partida.stats.vidaMax}`)
-    this.hudAtaque.setText(`ATQ ${partida.ataqueEfectivo()} DEF ${partida.defensa()}`)
-    this.hudMonedas.setText(`● ${partida.monedas}`)
-    this.hudGrieta.setText(`✚ ${partida.grieta}/100 Nv${partida.nivel}`)
-    if (this.hudBarraRelleno) {
+    if (!this.hudPv) return
+    const txtPv = `PV ${partida.stats.vida}/${partida.stats.vidaMax}`
+    const txtAtq = `ATQ ${partida.ataqueEfectivo()} DEF ${partida.defensa()}`
+    const txtMon = `● ${partida.monedas}`
+    const txtGri = `✚ ${partida.grieta}/100 Nv${partida.nivel}`
+
+    if (!this.hudPrevios) this.hudPrevios = {}
+    if (this.hudPrevios.pv !== txtPv) {
+      this.hudPv.setText(txtPv)
+      this.hudPrevios.pv = txtPv
+    }
+    if (this.hudPrevios.atq !== txtAtq) {
+      this.hudAtaque.setText(txtAtq)
+      this.hudPrevios.atq = txtAtq
+    }
+    if (this.hudPrevios.mon !== txtMon) {
+      this.hudMonedas.setText(txtMon)
+      this.hudPrevios.mon = txtMon
+    }
+    if (this.hudPrevios.gri !== txtGri) {
+      this.hudGrieta.setText(txtGri)
+      this.hudPrevios.gri = txtGri
+    }
+    if (this.hudBarraRelleno && this.hudPrevios.grietaVal !== partida.grieta) {
       const w = Math.max(0, Math.min(60, Math.round((partida.grieta / 100) * 60)))
       this.hudBarraRelleno.width = w
       this.hudBarraRelleno.setFillStyle(partida.grieta >= 60 ? 0xd04a4a : 0xb07a9a)
+      this.hudPrevios.grietaVal = partida.grieta
     }
   }
 
@@ -193,37 +216,139 @@ export class UiScene extends Phaser.Scene {
 
   crearPausa() {
     const { width, height } = VISTA
-    this.pausaVelo = this.add
-      .rectangle(width / 2, height / 2, width, height, 0x000000, 0.6)
-      .setDepth(4000)
-      .setInteractive() // bloquea el paso al mundo
-      .setVisible(false)
-    this.pausaTexto = this.add
-      .text(width / 2, height / 2, 'PAUSA\ntoca para seguir', {
+    this.pausaContenedor = this.add.container(0, 0).setDepth(4000).setVisible(false)
+
+    // Velo que bloquea el paso al mundo
+    const velo = this.add
+      .rectangle(width / 2, height / 2, width, height, 0x000000, 0.75)
+      .setInteractive()
+    this.pausaContenedor.add(velo)
+
+    // Panel central
+    const anchoCaja = Math.min(width - 32, 280)
+    const altoCaja = 196
+    const cx = width / 2
+    const cy = height / 2
+
+    const fondo = this.add
+      .rectangle(cx, cy, anchoCaja, altoCaja, 0x121418, 0.95)
+      .setStrokeStyle(1, 0xe8e8e8, 0.9)
+    this.pausaContenedor.add(fondo)
+
+    const tit = this.add
+      .text(cx, cy - 74, '— PAUSA —', {
         fontFamily: FUENTE,
         fontSize: '10px',
-        color: '#ffffff',
-        align: 'center',
+        color: '#e0c04a',
       })
       .setOrigin(0.5)
-      .setDepth(4001)
-      .setVisible(false)
-    this.pausaVelo.on('pointerdown', () => this.mundo && this.mundo.alternarPausa())
+    this.pausaContenedor.add(tit)
+
+    this.pausaInfo = this.add
+      .text(cx, cy - 54, '', {
+        fontFamily: FUENTE,
+        fontSize: '6px',
+        color: '#8a9a8a',
+        align: 'center',
+        lineSpacing: 3,
+      })
+      .setOrigin(0.5)
+    this.pausaContenedor.add(this.pausaInfo)
+
+    // Botones con hit areas accesibles (≥ 48 px interactivos)
+    // 1. Reanudar
+    const btnReanudar = this.crearBotonPausa(cx, cy - 24, 180, 24, 'REANUDAR', () => {
+      audio8.sfx('confirmar')
+      this.mundo && this.mundo.alternarPausa()
+    })
+    this.pausaContenedor.add(btnReanudar)
+
+    // 2. Audio Toggle (Mute / Unmute)
+    this.btnAudioToggle = this.crearBotonPausa(cx, cy + 8, 180, 24, 'AUDIO: ACTIVADO', () => {
+      audio8.toggleMute()
+      audio8.sfx('confirmar')
+      this.actualizarTextosPausa()
+    })
+    this.pausaContenedor.add(this.btnAudioToggle)
+
+    // 3. Fila de Volumen: [ - ]  VOL 80%  [ + ]
+    const btnVolMenos = this.crearBotonPausa(cx - 70, cy + 40, 36, 24, '-', () => {
+      audio8.setVolumen(Math.max(0, audio8.volumenMaster - 0.1))
+      audio8.sfx('confirmar')
+      this.actualizarTextosPausa()
+    })
+    this.txtVolumen = this.add
+      .text(cx, cy + 40, 'VOL 80%', {
+        fontFamily: FUENTE,
+        fontSize: '7px',
+        color: '#e8e8e8',
+      })
+      .setOrigin(0.5)
+    const btnVolMas = this.crearBotonPausa(cx + 70, cy + 40, 36, 24, '+', () => {
+      audio8.setVolumen(Math.min(1, audio8.volumenMaster + 0.1))
+      audio8.sfx('confirmar')
+      this.actualizarTextosPausa()
+    })
+    this.pausaContenedor.add([btnVolMenos, this.txtVolumen, btnVolMas])
+
+    // 4. Salir al Menú Principal
+    const btnSalir = this.crearBotonPausa(cx, cy + 72, 180, 24, 'GUARDAR Y SALIR', () => {
+      audio8.sfx('confirmar')
+      partida.guardar()
+      audio8.detenerAmbiente(false)
+      this.scene.stop('Ui')
+      this.scene.stop('World')
+      this.scene.start('Menu')
+    })
+    this.pausaContenedor.add(btnSalir)
+  }
+
+  crearBotonPausa(x, y, w, h, texto, onClick) {
+    const contenedor = this.add.container(x, y)
+    // Hit area interactiva accesible de al menos 48 px
+    const hitW = Math.max(w, 48)
+    const hitH = Math.max(h, 48)
+    const zona = this.add.zone(0, 0, hitW, hitH).setInteractive()
+    const caja = this.add
+      .rectangle(0, 0, w, h, 0x1f242c, 0.9)
+      .setStrokeStyle(1, 0x707888, 0.9)
+    const lbl = this.add
+      .text(0, 0, texto, {
+        fontFamily: FUENTE,
+        fontSize: '7px',
+        color: '#ffffff',
+      })
+      .setOrigin(0.5)
+
+    zona.on('pointerdown', onClick)
+    zona.on('pointerover', () => caja.setFillStyle(0x353e4c, 1))
+    zona.on('pointerout', () => caja.setFillStyle(0x1f242c, 0.9))
+
+    contenedor.add([zona, caja, lbl])
+    contenedor.setEtiqueta = (t) => lbl.setText(t)
+    return contenedor
+  }
+
+  actualizarTextosPausa() {
+    if (this.btnAudioToggle) {
+      this.btnAudioToggle.setEtiqueta(audio8.mute ? 'AUDIO: SILENCIADO' : 'AUDIO: ACTIVADO')
+    }
+    if (this.txtVolumen) {
+      const pct = Math.round(audio8.volumenMaster * 100)
+      this.txtVolumen.setText(`VOL ${pct}%`)
+    }
   }
 
   setPausa(activada) {
     if (activada) {
       const dif = Datos.dificultad(partida.dificultad)
       const difNombre = dif?.nombre || partida.dificultad || 'Normal'
-      this.pausaTexto.setText(
-        `PAUSA\n\n` +
-        `Semilla: ${partida.semilla}\n` +
-        `Dificultad: ${difNombre}\n\n` +
-        `toca para seguir`
-      )
+      const av = Datos.aventura(partida.aventura)
+      const avNombre = av?.titulo || partida.aventura || ''
+      this.pausaInfo.setText(`${avNombre}\nDificultad: ${difNombre}`)
+      this.actualizarTextosPausa()
     }
-    this.pausaVelo.setVisible(activada)
-    this.pausaTexto.setVisible(activada)
+    this.pausaContenedor.setVisible(activada)
     this.menuTactil.setVisible(!activada)
   }
 }

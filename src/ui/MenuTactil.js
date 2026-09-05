@@ -1,34 +1,38 @@
-// MenuTactil — controles táctiles v1: d-pad 8 direcciones abajo-izquierda,
-// botón de acción contextual abajo-derecha y botón de menú (pausa).
+// MenuTactil — controles táctiles v2 (Fase H): accesibilidad móvil (hit areas ≥ 48 px),
+// d-pad 8 direcciones abajo-izquierda, botón de acción abajo-derecha,
+// botón de inventario (≡) y botón de pausa (⏸) arriba-derecha.
 // Multitouch: cada zona es interactiva por sí misma (activePointers: 3).
 
 import Phaser from 'phaser'
 import { VISTA } from '../core/resolucion.js'
+import { audio8 } from '../core/Audio8.js'
 
-const RADIO = 22
+const RADIO = 24
 const FUENTE = '"Press Start 2P", monospace'
 
 export class MenuTactil {
-  constructor(escena, { onAccion, onMenu } = {}) {
+  constructor(escena, { onAccion, onMenu, onPausa } = {}) {
     this.escena = escena
     this.direccion = { x: 0, y: 0 } // eje actual del d-pad (-1..1)
     this.accion = false
     this.acciones = new Set() // botones del d-pad activos
     this.onAccion = onAccion || (() => {})
     this.onMenu = onMenu || (() => {})
+    this.onPausa = onPausa || (() => {})
 
     const { width, height } = VISTA
     this.raiz = escena.add.container(0, 0).setScrollFactor(0).setDepth(2000)
 
     this.crearDpad(56, height - 56)
     this.crearBotonAccion(width - 44, height - 44)
-    this.crearBotonMenu(width - 30, 30)
+    this.crearBotonMenu(width - 30, 28)
+    this.crearBotonPausa(width - 78, 28)
   }
 
   crearDpad(cx, cy) {
     const e = this.escena
     this.raiz.add(
-      e.add.circle(cx, cy, 46, 0x000000, 0.25).setStrokeStyle(1, 0xffffff, 0.2)
+      e.add.circle(cx, cy, 48, 0x000000, 0.25).setStrokeStyle(1, 0xffffff, 0.2)
     )
     const posiciones = {
       arriba: [0, -1],
@@ -38,14 +42,14 @@ export class MenuTactil {
     }
     this.botones = {}
     for (const [nombre, [dx, dy]] of Object.entries(posiciones)) {
-      const bx = cx + dx * 30
-      const by = cy + dy * 30
+      const bx = cx + dx * 28
+      const by = cy + dy * 28
+      // Hit area accesible ≥ 48×48 px
       const zona = e.add
         .zone(bx, by, RADIO * 2, RADIO * 2)
         .setInteractive()
-      const gfx = e.add.circle(bx, by, RADIO * 0.8, 0xffffff, 0.14)
+      const gfx = e.add.circle(bx, by, RADIO * 0.75, 0xffffff, 0.14)
       this.raiz.add([gfx])
-      // La zona debe vivir en la raíz para compartir scrollFactor/depth.
       gfx.setDepth(2001)
       zona.setScrollFactor(0).setDepth(2002)
 
@@ -82,8 +86,9 @@ export class MenuTactil {
 
   crearBotonAccion(bx, by) {
     const e = this.escena
-    const zona = e.add.zone(bx, by, 40, 40).setInteractive()
-    const circulo = e.add.circle(bx, by, 20, 0xd4574e, 0.35).setScrollFactor(0).setDepth(2001)
+    // Hit area accesible ≥ 48×48 px
+    const zona = e.add.zone(bx, by, 48, 48).setInteractive()
+    const circulo = e.add.circle(bx, by, 22, 0xd4574e, 0.35).setScrollFactor(0).setDepth(2001)
     const etiqueta = e.add
       .text(bx, by, 'A', { fontFamily: FUENTE, fontSize: '12px', color: '#ffffff' })
       .setOrigin(0.5)
@@ -94,6 +99,7 @@ export class MenuTactil {
     zona.on('pointerdown', () => {
       this.accion = true
       circulo.setFillStyle(0xd4574e, 0.75)
+      audio8.sfx('confirmar')
       this.onAccion()
     })
     zona.on('pointerup', () => {
@@ -114,12 +120,12 @@ export class MenuTactil {
     this.accionBtn.zona.input.enabled = habilitado && !this.bloqueado
   }
 
-  // Bloqueo modal: con la DialogBox abierta el d-pad y A se silencian y el
-  // eje vuelve a 0 para que el jugador se detenga.
   setBloqueado(bloqueado) {
     this.bloqueado = bloqueado
     for (const b of Object.values(this.botones)) b.zona.input.enabled = !bloqueado
     this.accionBtn.zona.input.enabled = !bloqueado && this.habilitado
+    if (this.btnMenu?.zona?.input) this.btnMenu.zona.input.enabled = !bloqueado
+    if (this.btnPausa?.zona?.input) this.btnPausa.zona.input.enabled = !bloqueado
     if (bloqueado) {
       this.acciones.clear()
       for (const b of Object.values(this.botones)) b.gfx.setFillStyle(0xffffff, 0.14)
@@ -130,13 +136,36 @@ export class MenuTactil {
 
   crearBotonMenu(bx, by) {
     const e = this.escena
-    const zona = e.add.zone(bx, by, 28, 28).setInteractive().setScrollFactor(0).setDepth(2002)
+    // Hit area accesible ≥ 48×48 px
+    const zona = e.add.zone(bx, by, 48, 48).setInteractive().setScrollFactor(0).setDepth(2002)
+    const fondo = e.add.circle(bx, by, 14, 0x000000, 0.4).setScrollFactor(0).setDepth(2001)
     const etiqueta = e.add
-      .text(bx, by, '≡', { fontFamily: FUENTE, fontSize: '14px', color: '#ffffff' })
+      .text(bx, by, '≡', { fontFamily: FUENTE, fontSize: '13px', color: '#ffffff' })
       .setOrigin(0.5)
       .setScrollFactor(0)
-      .setDepth(2001)
-    zona.on('pointerdown', () => this.onMenu())
+      .setDepth(2002)
+    zona.on('pointerdown', () => {
+      audio8.sfx('confirmar')
+      this.onMenu()
+    })
+    this.btnMenu = { zona, fondo, etiqueta }
+  }
+
+  crearBotonPausa(bx, by) {
+    const e = this.escena
+    // Hit area accesible ≥ 48×48 px
+    const zona = e.add.zone(bx, by, 48, 48).setInteractive().setScrollFactor(0).setDepth(2002)
+    const fondo = e.add.circle(bx, by, 14, 0x000000, 0.4).setScrollFactor(0).setDepth(2001)
+    const etiqueta = e.add
+      .text(bx, by, '⏸', { fontFamily: FUENTE, fontSize: '11px', color: '#ffffff' })
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(2002)
+    zona.on('pointerdown', () => {
+      audio8.sfx('confirmar')
+      this.onPausa()
+    })
+    this.btnPausa = { zona, fondo, etiqueta }
   }
 
   setVisible(visible) {
@@ -148,6 +177,16 @@ export class MenuTactil {
     this.accionBtn.zona.visible = visible
     this.accionBtn.circulo.visible = visible
     this.accionBtn.etiqueta.visible = visible
+    if (this.btnMenu) {
+      this.btnMenu.zona.visible = visible
+      this.btnMenu.fondo.visible = visible
+      this.btnMenu.etiqueta.visible = visible
+    }
+    if (this.btnPausa) {
+      this.btnPausa.zona.visible = visible
+      this.btnPausa.fondo.visible = visible
+      this.btnPausa.etiqueta.visible = visible
+    }
   }
 }
 

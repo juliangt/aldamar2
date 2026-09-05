@@ -62,3 +62,21 @@ game.events.once(Phaser.Core.Events.READY, () => {
 // Entrar/salir de pantalla completa o redimensionar la ventana: recalcular
 // el supersampling (tamaño de canvas, zoom de cámaras, resolución de textos).
 window.addEventListener('resize', () => reajustarRes(game))
+
+// Ciclo de vida móvil (Fase H): pausa al pasar a segundo plano (visibilitychange),
+// suspender AudioContext para evitar audio fantasma, y reanudar al volver.
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    const worldScene = game.scene.getScene('World')
+    if (worldScene && game.scene.isActive('World') && !worldScene.pausado) {
+      worldScene.alternarPausa()
+    }
+    if (audio8.ctx && audio8.ctx.state === 'running') {
+      audio8.ctx.suspend()
+    }
+  } else {
+    if (audio8.ctx && audio8.ctx.state === 'suspended') {
+      audio8.ctx.resume()
+    }
+  }
+})
