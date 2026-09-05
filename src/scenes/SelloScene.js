@@ -4,7 +4,7 @@
 
 import Phaser from 'phaser'
 import audio8 from '../core/Audio8.js'
-import { VISTA, aplicarRes } from '../core/resolucion.js'
+import { VISTA, aplicarRes, alRelayout } from '../core/resolucion.js'
 
 // Sello provisional: héroe con el Corazón al pecho y la espada clavada
 // al costado. Debe caber en 480×270 con la fuente pixel real.
@@ -57,7 +57,7 @@ export class SelloScene extends Phaser.Scene {
     this._jingleSonando = false
     this._terminado = false
 
-    this.add
+    this.selloTxt = this.add
       .text(width / 2, height / 2 - 12, SELLO.join('\n'), {
         fontFamily: fuente,
         fontSize: '8px',
@@ -93,6 +93,16 @@ export class SelloScene extends Phaser.Scene {
 
     this.input.once('pointerdown', () => this.comenzar())
     this.input.keyboard?.once('keydown-SPACE', () => this.comenzar())
+
+    alRelayout(this, () => this.relayout())
+  }
+
+  // Re-encuadre al girar el dispositivo (la vista cambia 270×480 ⇄ 480×270).
+  relayout() {
+    const { width, height } = VISTA
+    this.selloTxt.setPosition(width / 2, height / 2 - 12)
+    this.titulo.setPosition(width / 2, height / 2 + 14)
+    this.pista.setPosition(width / 2, height - 16)
   }
 
   // Primer toque: desbloquea el audio, suena el jingle y programa la salida.

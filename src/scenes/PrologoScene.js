@@ -1,5 +1,7 @@
 // PrologoScene — prólogo cinemático: prologo_base, prologo_extra,
 // texto_fama (legado) y presentacion con efecto typewriter y avance táctil (Fase F).
+// Adaptativo: al girar el dispositivo se re-paginan los bloques contra la
+// nueva vista y el typewriter continúa donde iba (página completada).
 
 import Phaser from 'phaser'
 import Datos from '../core/Datos.js'
@@ -7,10 +9,11 @@ import Texto from '../core/Texto.js'
 import Legacy from '../core/Legacy.js'
 import { partida } from '../core/partida.js'
 import { audio8 } from '../core/Audio8.js'
-import { VISTA, aplicarRes } from '../core/resolucion.js'
+import { VISTA, aplicarRes, alRelayout } from '../core/resolucion.js'
 
 const FUENTE = '"Press Start 2P", monospace'
 const CAR_POR_SG = 30
+const CAJA_H = 150
 
 export class PrologoScene extends Phaser.Scene {
   constructor() {
@@ -23,6 +26,8 @@ export class PrologoScene extends Phaser.Scene {
     this.indicePagina = 0
     this.chars = 0
     this.escribiendo = false
+    this.paginas = []
+    this.bloques = []
   }
 
   create() {
@@ -72,25 +77,7 @@ export class PrologoScene extends Phaser.Scene {
         texto: Texto.tpl(pj.presentacion.trim(), ctx),
       })
     }
-
-    // Paginar textos que excedan el espacio visible
-    // En 480×270 con caja de 420×140: ~46 caracteres por línea, 7 líneas
-    this.paginas = []
-    for (const b of bloques) {
-      const pags = Texto.paginar(b.texto, 44, 7)
-      pags.forEach((txtP, idx) => {
-        this.paginas.push({
-          titulo: b.titulo + (pags.length > 1 ? ` (${idx + 1}/${pags.length})` : ''),
-          colorTitulo: b.colorTitulo,
-          texto: txtP,
-        })
-      })
-    }
-
-    if (this.paginas.length === 0) {
-      this.iniciarMundo()
-      return
-    }
+    this.bloques = bloques
 
     // Interfaz visual
     this.txtTitulo = this.add
@@ -102,10 +89,8 @@ export class PrologoScene extends Phaser.Scene {
       .setOrigin(0.5)
 
     // Caja contenedora de texto
-    const cajaW = width - 48
-    const cajaH = 150
-    this.add
-      .rectangle(width / 2, height / 2 + 6, cajaW, cajaH, 0x0a0a0f, 0.8)
+    this.cajaRect = this.add
+      .rectangle(width / 2, height / 2 + 6, width - 48, CAJA_H, 0x0a0a0f, 0.8)
       .setStrokeStyle(1, 0x2e2e3e, 0.9)
 
     this.txtCuerpo = this.add
@@ -114,13 +99,13 @@ export class PrologoScene extends Phaser.Scene {
         fontSize: '7px',
         color: '#e8e8e8',
         align: 'center',
-        wordWrap: { width: cajaW - 24 },
+        wordWrap: { width: width - 48 - 24 },
         lineSpacing: 6,
       })
       .setOrigin(0.5)
 
     this.indicador = this.add
-      .text(width / 2 + cajaW / 2 - 16, height / 2 + cajaH / 2 - 10, '▸', {
+      .text(width / 2 + (width - 48) / 2 - 16, height / 2 + 6 + CAJA_H / 2 - 10, '▸', {
         fontFamily: FUENTE,
         fontSize: '8px',
         color: '#e0c04a',
@@ -156,7 +141,79 @@ export class PrologoScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-SPACE', () => this.avanzar())
     this.input.keyboard?.on('keydown-ENTER', () => this.avanzar())
 
+    this.paginar()
+    if (this.paginas.length === 0) {
+      this.iniciarMundo()
+      return
+    }
+
+    alRelayout(this, () => this.relayout())
     this.mostrarPagina(0)
+  }
+
+  // Capacidad de la caja en la vista actual, medida con la fuente pixel real.
+  capacidadPagina() {
+    const { width } = VISTA
+    const cajaW = width - 48
+    const prueba = this.add
+      .text(0, 0, 'MM', { fontFamily: FUENTE, fontSize: '7px' })
+      .setVisible(false)
+    const anchoChar = prueba.width / 2
+    const altoLinea = prueba.height + 6
+    prueba.destroy()
+    return {
+      carPorLinea: Math.max(8, Math.floor((cajaW - 24) / anchoChar)),
+      lineasPorPagina: Math.max(3, Math.floor((CAJA_H - 24) / altoLinea)),
+    }
+  }
+
+  // Re-pagina los bloques contra la vista actual (título con (n/m) si múltiple).
+  paginar() {
+    const { carPorLinea, lineasPorPagina } = this.capacidadPagina()
+    this.paginas = []
+    this.bloques.forEach((b) => {
+      const pags = Texto.paginar(b.texto, carPorLinea, lineasPorPagina)
+      pags.forEach((txtP, idx) => {
+        this.paginas.push({
+          titulo: b.titulo + (pags.length > 1 ? ` (${idx + 1}/${pags.length})` : ''),
+          colorTitulo: b.colorTitulo,
+          texto: txtP,
+          bloque: b,
+          idxEnBloque: idx,
+          totalEnBloque: pags.length,
+        })
+      })
+    })
+  }
+
+  // Re-encuadre al girar el dispositivo: posiciones + re-paginación del
+  // bloque en curso (la página actual se muestra completada, sin typewriter).
+  relayout() {
+    const { width, height } = VISTA
+    const cajaW = width - 48
+    this.txtTitulo.setPosition(width / 2, 28)
+    this.cajaRect.setPosition(width / 2, height / 2 + 6).setSize(cajaW, CAJA_H)
+    this.txtCuerpo.setPosition(width / 2, height / 2 + 6).setStyle({
+      wordWrap: { width: cajaW - 24 },
+    })
+    this.indicador.setPosition(width / 2 + cajaW / 2 - 16, height / 2 + 6 + CAJA_H / 2 - 10)
+    this.zonaTap.setPosition(width / 2, height / 2).setSize(width, height)
+    if (this.zonaTap.input?.hitArea?.setSize) {
+      this.zonaTap.input.hitArea.setSize(width, height)
+    }
+
+    if (!this.paginas.length) return
+    const actual = this.paginas[this.indicePagina]
+    this.paginar()
+
+    // Retomar el mismo bloque por su página (acotada a la nueva paginación).
+    const nuevoIdx = this.paginas.findIndex(
+      (p) =>
+        p.bloque === actual.bloque &&
+        p.idxEnBloque === Math.min(actual.idxEnBloque, actual.totalEnBloque - 1)
+    )
+    this.indicePagina = nuevoIdx >= 0 ? nuevoIdx : 0
+    this.completarPagina()
   }
 
   mostrarPagina(indice) {
@@ -198,8 +255,11 @@ export class PrologoScene extends Phaser.Scene {
   }
 
   completarPagina() {
+    const p = this.paginas[this.indicePagina]
+    if (!p) return
     if (this.temporizador) this.temporizador.remove()
-    this.txtCuerpo.setText(this.textoCompleto)
+    this.textoCompleto = p.texto
+    this.txtCuerpo.setText(p.texto)
     this.escribiendo = false
     this.indicador.setVisible(true)
   }

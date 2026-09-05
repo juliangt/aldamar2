@@ -7,7 +7,7 @@ import Datos from '../core/Datos.js'
 import Legacy from '../core/Legacy.js'
 import GameState from '../core/GameState.js'
 import { partida } from '../core/partida.js'
-import { VISTA, aplicarRes } from '../core/resolucion.js'
+import { VISTA, aplicarRes, alRelayout, esVistaVertical } from '../core/resolucion.js'
 
 const FUENTE = '"Press Start 2P", monospace'
 
@@ -37,6 +37,9 @@ export class MenuScene extends Phaser.Scene {
     this.aventuras = Datos.orden
     this.raiz = this.add.container(0, 0)
     this.renderizarVista()
+
+    // Al girar el dispositivo se re-dibuja el menú contra la nueva vista.
+    alRelayout(this, () => this.renderizarVista())
   }
 
   renderizarVista() {
@@ -50,6 +53,12 @@ export class MenuScene extends Phaser.Scene {
 
   dibujarMenuPrincipal() {
     const { width, height } = VISTA
+    const vertical = esVistaVertical()
+    // En vertical (270×480) el contenido se baja para centrarlo en el
+    // hueco extra; en horizontal se mantiene arriba como siempre.
+    const dy = vertical ? 56 : 0
+    // Separación de las flechas del navegador de campañas, acotada al ancho.
+    const navDX = Math.min(140, width / 2 - 20)
     const avActual = this.aventuras[this.indiceAventura]
     const totalAv = this.aventuras.length
     const legado = Legacy.cargar()
@@ -62,7 +71,7 @@ export class MenuScene extends Phaser.Scene {
 
     // ------------------------------------------------ Cabecera (Sello + Título)
     const miniSello = this.add
-      .text(width / 2 - 90, 18, MINI_SELLO_MENU.join('\n'), {
+      .text(width / 2 - 90, 18 + dy, MINI_SELLO_MENU.join('\n'), {
         fontFamily: FUENTE,
         fontSize: '6px',
         color: '#888888',
@@ -71,7 +80,7 @@ export class MenuScene extends Phaser.Scene {
       .setOrigin(0.5, 0)
 
     const titulo = this.add
-      .text(width / 2 + 10, 22, 'ALDAMAR', {
+      .text(width / 2 + 10, 22 + dy, 'ALDAMAR', {
         fontFamily: FUENTE,
         fontSize: '18px',
         color: '#ffffff',
@@ -79,7 +88,7 @@ export class MenuScene extends Phaser.Scene {
       .setOrigin(0.5, 0)
 
     const subtitulo = this.add
-      .text(width / 2 + 10, 44, 'CRÓNICAS DE LA CENIZA', {
+      .text(width / 2 + 10, 44 + dy, 'CRÓNICAS DE LA CENIZA', {
         fontFamily: FUENTE,
         fontSize: '6px',
         color: '#707070',
@@ -102,9 +111,13 @@ export class MenuScene extends Phaser.Scene {
       })
 
     // ------------------------------------------------ Navegador de Aventuras
-    const navY = 66
+    const navY = 66 + dy
     const navIzq = this.add
-      .text(width / 2 - 140, navY, '◄', { fontFamily: FUENTE, fontSize: '10px', color: '#ffffff' })
+      .text(width / 2 - navDX, navY, '◄', {
+        fontFamily: FUENTE,
+        fontSize: '10px',
+        color: '#ffffff',
+      })
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true })
       .on('pointerdown', () => {
@@ -117,13 +130,17 @@ export class MenuScene extends Phaser.Scene {
     const navTxt = this.add
       .text(width / 2, navY, `CAMPAÑA ${ordenRomano}${etiquetaRecomendada}`, {
         fontFamily: FUENTE,
-        fontSize: '8px',
+        fontSize: vertical ? '7px' : '8px',
         color: '#e0c04a',
       })
       .setOrigin(0.5)
 
     const navDer = this.add
-      .text(width / 2 + 140, navY, '►', { fontFamily: FUENTE, fontSize: '10px', color: '#ffffff' })
+      .text(width / 2 + navDX, navY, '►', {
+        fontFamily: FUENTE,
+        fontSize: '10px',
+        color: '#ffffff',
+      })
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true })
       .on('pointerdown', () => {
@@ -180,6 +197,7 @@ export class MenuScene extends Phaser.Scene {
         fontSize: '7px',
         color: estadoColor,
         align: 'center',
+        wordWrap: { width: cardW - 16 },
       })
       .setOrigin(0.5)
 
@@ -270,6 +288,11 @@ export class MenuScene extends Phaser.Scene {
 
   dibujarPanelLegado() {
     const { width, height } = VISTA
+    const vertical = esVistaVertical()
+    // En vertical las líneas largas (banderas, héroes) necesitan wrap y un
+    // poco más de aire entre secciones.
+    const px = vertical ? 12 : 28
+    const dy = vertical ? 26 : 0
     const legado = Legacy.cargar()
 
     const fondo = this.add.rectangle(width / 2, height / 2, width, height, 0x0a0a10, 0.98)
@@ -277,7 +300,7 @@ export class MenuScene extends Phaser.Scene {
     const titLegado = this.add
       .text(width / 2, 20, '❖ EL LEGADO DE ALDAMAR', {
         fontFamily: FUENTE,
-        fontSize: '10px',
+        fontSize: vertical ? '8px' : '10px',
         color: '#e0c04a',
       })
       .setOrigin(0.5)
@@ -287,6 +310,8 @@ export class MenuScene extends Phaser.Scene {
         fontFamily: FUENTE,
         fontSize: '6px',
         color: '#888888',
+        wordWrap: { width: width - 24 },
+        align: 'center',
       })
       .setOrigin(0.5)
 
@@ -294,20 +319,22 @@ export class MenuScene extends Phaser.Scene {
     const juramentoTxt = `JURAMENTO DE LA ALIANZA : ${legado.juramento ? 'ACTIVO (ENCENDIDO)' : 'INACTIVO'}`
     const grietaTxt = `MARCA DE LA GRIETA      : ${legado.grieta ? 'ACTIVA (ENCENDIDA)' : 'INACTIVA'}`
 
-    const txtJuramento = this.add.text(28, 54, juramentoTxt, {
+    const txtJuramento = this.add.text(px, 54 + dy, juramentoTxt, {
       fontFamily: FUENTE,
       fontSize: '7px',
       color: legado.juramento ? '#e0c04a' : '#666666',
+      wordWrap: { width: width - px * 2 },
     })
 
-    const txtGrieta = this.add.text(28, 68, grietaTxt, {
+    const txtGrieta = this.add.text(px, 68 + dy, grietaTxt, {
       fontFamily: FUENTE,
       fontSize: '7px',
       color: legado.grieta ? '#d04a4a' : '#666666',
+      wordWrap: { width: width - px * 2 },
     })
 
     // Héroes que culminaron
-    const txtTitHeroes = this.add.text(28, 88, 'HÉROES QUE CRUZARON LA CENIZA:', {
+    const txtTitHeroes = this.add.text(px, 88 + dy, 'HÉROES QUE CRUZARON LA CENIZA:', {
       fontFamily: FUENTE,
       fontSize: '7px',
       color: '#9ad09a',
@@ -323,15 +350,16 @@ export class MenuScene extends Phaser.Scene {
         .join('\n')
     }
 
-    const txtHeroes = this.add.text(28, 102, infoHeroes, {
+    const txtHeroes = this.add.text(px, 102 + dy, infoHeroes, {
       fontFamily: FUENTE,
       fontSize: '6px',
       color: '#cccccc',
       lineSpacing: 4,
+      wordWrap: { width: width - px * 2 },
     })
 
     // Finales registrados
-    const txtTitFinales = this.add.text(28, 154, 'FINALES ALCANZADOS POR CAMPAÑA:', {
+    const txtTitFinales = this.add.text(px, 154 + dy * 2, 'FINALES ALCANZADOS POR CAMPAÑA:', {
       fontFamily: FUENTE,
       fontSize: '7px',
       color: '#8ab4f8',
@@ -344,11 +372,12 @@ export class MenuScene extends Phaser.Scene {
       return `• ${nombreAv}: ${fin ? fin.toUpperCase() : 'Pendiente'}`
     })
 
-    const txtFinales = this.add.text(28, 168, lineasFinales.join('\n'), {
+    const txtFinales = this.add.text(px, 168 + dy * 2, lineasFinales.join('\n'), {
       fontFamily: FUENTE,
       fontSize: '6px',
       color: '#aaaaaa',
       lineSpacing: 3,
+      wordWrap: { width: width - px * 2 },
     })
 
     // Botón volver

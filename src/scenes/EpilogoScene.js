@@ -7,7 +7,7 @@ import Texto from '../core/Texto.js'
 import { partida } from '../core/partida.js'
 import GameState from '../core/GameState.js'
 import { audio8, DURACION_JINGLE } from '../core/Audio8.js'
-import { VISTA, aplicarRes } from '../core/resolucion.js'
+import { VISTA, aplicarRes, alRelayout } from '../core/resolucion.js'
 
 const FUENTE = '"Press Start 2P", monospace'
 
@@ -71,7 +71,7 @@ export class EpilogoScene extends Phaser.Scene {
 
     this.contenedorTexto = this.add.container(0, 0)
 
-    const encabezado = this.add
+    this.encabezado = this.add
       .text(width / 2, 28, titulo, {
         fontFamily: FUENTE,
         fontSize: '11px',
@@ -81,7 +81,7 @@ export class EpilogoScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
 
-    const cuerpo = this.add
+    this.cuerpo = this.add
       .text(width / 2, height / 2 - 2, texto, {
         fontFamily: FUENTE,
         fontSize: '7px',
@@ -92,7 +92,7 @@ export class EpilogoScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
 
-    const btnCierre = this.add
+    this.btnCierre = this.add
       .text(width / 2, height - 24, '▶ CONTINUAR', {
         fontFamily: FUENTE,
         fontSize: '8px',
@@ -101,20 +101,35 @@ export class EpilogoScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true })
 
-    this.tweens.add({ targets: cuerpo, alpha: { from: 0, to: 1 }, duration: 800 })
+    this.tweens.add({ targets: this.cuerpo, alpha: { from: 0, to: 1 }, duration: 800 })
     this.tweens.add({
-      targets: btnCierre,
+      targets: this.btnCierre,
       alpha: 0.4,
       duration: 600,
       yoyo: true,
       repeat: -1,
     })
 
-    this.contenedorTexto.add([encabezado, cuerpo, btnCierre])
+    this.contenedorTexto.add([this.encabezado, this.cuerpo, this.btnCierre])
 
-    btnCierre.on('pointerdown', () => this.mostrarCierreSello())
+    this.btnCierre.on('pointerdown', () => this.mostrarCierreSello())
     this.input.keyboard?.once('keydown-ENTER', () => this.mostrarCierreSello())
     this.input.keyboard?.once('keydown-SPACE', () => this.mostrarCierreSello())
+
+    alRelayout(this, () => this.relayout())
+  }
+
+  // Re-encuadre al girar el dispositivo (texto y cierre con sello).
+  relayout() {
+    const { width, height } = VISTA
+    this.encabezado.setPosition(width / 2, 28).setStyle({ wordWrap: { width: width - 40 } })
+    this.cuerpo.setPosition(width / 2, height / 2 - 2).setStyle({ wordWrap: { width: width - 48 } })
+    this.btnCierre.setPosition(width / 2, height - 24)
+    if (this._mostrandoSello) {
+      this.selloTexto?.setPosition(width / 2, height / 2 - 14)
+      this.tituloAldamar?.setPosition(width / 2, height / 2 + 34)
+      this.volverTexto?.setPosition(width / 2, height - 18)
+    }
   }
 
   // Cierre de aventura: sello + jingle WebAudio y retorno a MenuScene (§5.6 / Fase F)
@@ -150,6 +165,10 @@ export class EpilogoScene extends Phaser.Scene {
         color: '#707070',
       })
       .setOrigin(0.5)
+
+    this.selloTexto = selloTexto
+    this.tituloAldamar = tituloAldamar
+    this.volverTexto = volverTexto
 
     // Reproducir jingle oficial
     audio8.ensure()

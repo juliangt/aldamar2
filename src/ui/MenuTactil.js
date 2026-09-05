@@ -20,20 +20,50 @@ export class MenuTactil {
     this.onMenu = onMenu || (() => {})
     this.onPausa = onPausa || (() => {})
 
-    const { width, height } = VISTA
     this.raiz = escena.add.container(0, 0).setScrollFactor(0).setDepth(2000)
 
-    this.crearDpad(56, height - 56)
-    this.crearBotonAccion(width - 44, height - 44)
-    this.crearBotonMenu(width - 30, 28)
-    this.crearBotonPausa(width - 78, 28)
+    this.crearDpad(56, VISTA.height - 56)
+    this.crearBotonAccion(VISTA.width - 44, VISTA.height - 44)
+    this.crearBotonMenu(VISTA.width - 30, 28)
+    this.crearBotonPausa(VISTA.width - 78, 28)
+  }
+
+  // Re-posiciona todos los controles al cambiar la orientación (270×480
+  // ⇄ 480×270): las esquinas se recalculan contra la nueva vista y las
+  // zonas interactivas conservan sus listeners.
+  relayout() {
+    const { width, height } = VISTA
+    const cx = 56
+    const cy = height - 56
+    this.dpadBase.setPosition(cx, cy)
+    for (const [nombre, [dx, dy]] of Object.entries({
+      arriba: [0, -1],
+      abajo: [0, 1],
+      izquierda: [-1, 0],
+      derecha: [1, 0],
+    })) {
+      const b = this.botones[nombre]
+      if (!b) continue
+      b.zona.setPosition(cx + dx * 28, cy + dy * 28)
+      b.gfx.setPosition(cx + dx * 28, cy + dy * 28)
+    }
+    this.accionBtn.zona.setPosition(width - 44, height - 44)
+    this.accionBtn.circulo.setPosition(width - 44, height - 44)
+    this.accionBtn.etiqueta.setPosition(width - 44, height - 44)
+    this.btnMenu?.zona.setPosition(width - 30, 28)
+    this.btnMenu?.fondo.setPosition(width - 30, 28)
+    this.btnMenu?.etiqueta.setPosition(width - 30, 28)
+    this.btnPausa?.zona.setPosition(width - 78, 28)
+    this.btnPausa?.fondo.setPosition(width - 78, 28)
+    this.btnPausa?.etiqueta.setPosition(width - 78, 28)
   }
 
   crearDpad(cx, cy) {
     const e = this.escena
-    this.raiz.add(
-      e.add.circle(cx, cy, 48, 0x000000, 0.25).setStrokeStyle(1, 0xffffff, 0.2)
-    )
+    this.dpadBase = e.add
+      .circle(cx, cy, 48, 0x000000, 0.25)
+      .setStrokeStyle(1, 0xffffff, 0.2)
+    this.raiz.add(this.dpadBase)
     const posiciones = {
       arriba: [0, -1],
       abajo: [0, 1],

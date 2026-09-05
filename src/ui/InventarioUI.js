@@ -19,9 +19,20 @@ export class InventarioUI extends PanelUI {
     super(escena, { titulo: 'INVENTARIO' })
     this.onToast = onToast || (() => {})
     this.onCambio = onCambio || (() => {})
+    this.recalcularFilas()
+  }
+
+  // Coordenadas de la lista contra la geometría actual del panel.
+  recalcularFilas() {
     this.xFilas = this.x + 10
     this.yFilas = this.y + 22
     this.altoFilas = this.alto - 34
+  }
+
+  // Giro de dispositivo: re-encuadre + repintado de la lista abierta.
+  alCambiarVista() {
+    this.recalcularFilas()
+    if (this.abierto) this.pintar()
   }
 
   abrir() {

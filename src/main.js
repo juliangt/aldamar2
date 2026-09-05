@@ -10,6 +10,7 @@ import { Rng } from './core/Rng.js'
 import Datos from './core/Datos.js'
 import { partida } from './core/partida.js'
 import { RES, reajustarRes } from './core/resolucion.js'
+import { alternarPantallaCompleta, pedirPantallaCompletaEnPrimerGesto } from './core/pantalla.js'
 
 // Textos nítidos con supersampling: rasterizar a la resolución real del
 // canvas (resolution) en vez de dejar que el zoom de cámara escale una
@@ -59,9 +60,18 @@ game.events.once(Phaser.Core.Events.READY, () => {
   audio8.ensure()
 })
 
-// Entrar/salir de pantalla completa o redimensionar la ventana: recalcular
-// el supersampling (tamaño de canvas, zoom de cámaras, resolución de textos).
+// Entrar/salir de pantalla completa, girar el dispositivo o redimensionar
+// la ventana: recalcular orientación y supersampling (tamaño de canvas,
+// zoom de cámaras, resolución de textos) y re-layout de las escenas.
 window.addEventListener('resize', () => reajustarRes(game))
+window.addEventListener('orientationchange', () => reajustarRes(game))
+
+// Escritorio: pantalla completa al primer gesto (política de navegadores);
+// tecla F para alternarla en cualquier momento.
+pedirPantallaCompletaEnPrimerGesto()
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'f' || e.key === 'F') alternarPantallaCompleta()
+})
 
 // Ciclo de vida móvil (Fase H): pausa al pasar a segundo plano (visibilitychange),
 // suspender AudioContext para evitar audio fantasma, y reanudar al volver.

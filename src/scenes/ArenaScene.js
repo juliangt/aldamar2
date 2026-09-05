@@ -6,7 +6,7 @@ import Phaser from 'phaser'
 import Datos from '../core/Datos.js'
 import { partida } from '../core/partida.js'
 import Balance from '../core/Balance.js'
-import { VISTA, aplicarRes } from '../core/resolucion.js'
+import { VISTA, aplicarRes, alRelayout } from '../core/resolucion.js'
 
 const FUENTE = '"Press Start 2P", monospace'
 
@@ -83,6 +83,9 @@ export class ArenaScene extends Phaser.Scene {
       })
       .setInteractive({ useHandCursor: true })
       .on('pointerdown', () => this.scene.start('Menu'))
+
+    // Herramienta dev: al girar el dispositivo se re-renderiza entera.
+    alRelayout(this, () => this.scene.restart())
   }
 
   pelear(enemigoId) {
