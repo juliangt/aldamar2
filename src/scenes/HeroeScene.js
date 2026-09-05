@@ -1,0 +1,472 @@
+// HeroeScene — selección de héroe, dificultad y teclado táctil A–Z (Fase F).
+// Sin teclado del sistema: personalización de nombre táctil v1 (máx. 12 letras).
+
+import Phaser from 'phaser'
+import Datos from '../core/Datos.js'
+import { partida } from '../core/partida.js'
+import { VISTA, aplicarRes } from '../core/resolucion.js'
+
+const FUENTE = '"Press Start 2P", monospace'
+const MAX_NOMBRE = 12
+
+export class HeroeScene extends Phaser.Scene {
+  constructor() {
+    super('Heroe')
+  }
+
+  init(data = {}) {
+    this.avId = data.aventura || 'corazon_ceniza'
+    this.indiceHeroe = 0
+    this.dificultad = Datos.dificultadPorDefecto || 'camino'
+    this.nombresPersonalizados = {}
+    this.modo = 'heroe' // 'heroe' | 'teclado' | 'dificultad'
+  }
+
+  create() {
+    aplicarRes(this)
+    this.cameras.main.setBackgroundColor('#000000')
+
+    const av = Datos.aventura(this.avId)
+    this.clavesHeroes = Object.keys(av.personajes || {})
+    if (this.clavesHeroes.length === 0) {
+      this.scene.start('Menu')
+      return
+    }
+
+    this.raiz = this.add.container(0, 0)
+    this.renderizarVista()
+  }
+
+  heroeActual() {
+    const clave = this.clavesHeroes[this.indiceHeroe]
+    return { clave, pj: Datos.aventura(this.avId).personajes[clave] }
+  }
+
+  nombreActual(clave, pj) {
+    return this.nombresPersonalizados[clave] || pj.nombre || clave
+  }
+
+  renderizarVista() {
+    this.raiz.removeAll(true)
+    if (this.modo === 'heroe') {
+      this.dibujarSeleccionHeroe()
+    } else if (this.modo === 'teclado') {
+      this.dibujarTecladoTactil()
+    } else if (this.modo === 'dificultad') {
+      this.dibujarSeleccionDificultad()
+    }
+  }
+
+  // --------------------------------------------------- Paso 1: Selección de héroe
+
+  dibujarSeleccionHeroe() {
+    const { width, height } = VISTA
+    const { clave, pj } = this.heroeActual()
+    const total = this.clavesHeroes.length
+    const nombre = this.nombreActual(clave, pj)
+
+    // Barra superior
+    const volver = this.add
+      .text(12, 12, '◄ MENU', { fontFamily: FUENTE, fontSize: '8px', color: '#909090' })
+      .setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => this.scene.start('Menu'))
+
+    const tituloAv = this.add
+      .text(width / 2, 12, Datos.aventura(this.avId).titulo.toUpperCase(), {
+        fontFamily: FUENTE,
+        fontSize: '8px',
+        color: '#e0c04a',
+      })
+      .setOrigin(0.5, 0)
+
+    // Navegación de héroes
+    const navIzq = this.add
+      .text(width / 2 - 90, 28, '◄', { fontFamily: FUENTE, fontSize: '10px', color: '#ffffff' })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => {
+        this.indiceHeroe = (this.indiceHeroe - 1 + total) % total
+        this.renderizarVista()
+      })
+
+    const navIndice = this.add
+      .text(width / 2, 28, `HÉROE ${this.indiceHeroe + 1}/${total}`, {
+        fontFamily: FUENTE,
+        fontSize: '8px',
+        color: '#aaaaaa',
+      })
+      .setOrigin(0.5)
+
+    const navDer = this.add
+      .text(width / 2 + 90, 28, '►', { fontFamily: FUENTE, fontSize: '10px', color: '#ffffff' })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => {
+        this.indiceHeroe = (this.indiceHeroe + 1) % total
+        this.renderizarVista()
+      })
+
+    // Tarjeta del personaje (caja central)
+    const cajaW = width - 36
+    const cajaH = 160
+    const cajaX = width / 2
+    const cajaY = 40 + cajaH / 2
+
+    const fondoCaja = this.add
+      .rectangle(cajaX, cajaY, cajaW, cajaH, 0x111116, 0.95)
+      .setStrokeStyle(1, 0x444455, 0.8)
+
+    // Nombre y título
+    const txtNombre = this.add
+      .text(cajaX, 48, nombre, { fontFamily: FUENTE, fontSize: '11px', color: '#ffffff' })
+      .setOrigin(0.5, 0)
+
+    const txtTitulo = this.add
+      .text(cajaX, 64, pj.titulo || '', { fontFamily: FUENTE, fontSize: '7px', color: '#9ad09a' })
+      .setOrigin(0.5, 0)
+
+    // Estadísticas
+    const itemsNombres = (pj.inventario || [])
+      .map((id) => Datos.item(this.avId, id)?.nombre || id)
+      .join(', ') || 'ninguno'
+
+    const txtStats = this.add
+      .text(
+        cajaX,
+        78,
+        `PV: ${pj.vida}   ATQ: ${pj.ataque}   ORO: ${pj.monedas || 0}\nÍTEMS: ${itemsNombres}`,
+        {
+          fontFamily: FUENTE,
+          fontSize: '7px',
+          color: '#e8d8a8',
+          align: 'center',
+          lineSpacing: 3,
+        }
+      )
+      .setOrigin(0.5, 0)
+
+    // Presentación / rasgo
+    const txtPres = this.add
+      .text(cajaX, 102, pj.presentacion || '', {
+        fontFamily: FUENTE,
+        fontSize: '6px',
+        color: '#c0c0c0',
+        align: 'center',
+        wordWrap: { width: cajaW - 20 },
+        lineSpacing: 4,
+      })
+      .setOrigin(0.5, 0)
+
+    // Botones de acción inferiores dentro de la tarjeta
+    const btnNombre = this.add
+      .text(cajaX - 70, 184, '✎ CAMBIAR NOMBRE', {
+        fontFamily: FUENTE,
+        fontSize: '7px',
+        color: '#8ab4f8',
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => {
+        this.nombreTemp = nombre
+        this.modo = 'teclado'
+        this.renderizarVista()
+      })
+
+    const btnElegir = this.add
+      .text(cajaX + 70, 184, 'ELEGIR HÉROE ▶', {
+        fontFamily: FUENTE,
+        fontSize: '7px',
+        color: '#e0c04a',
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => {
+        this.modo = 'dificultad'
+        this.renderizarVista()
+      })
+
+    this.raiz.add([
+      volver,
+      tituloAv,
+      navIzq,
+      navIndice,
+      navDer,
+      fondoCaja,
+      txtNombre,
+      txtTitulo,
+      txtStats,
+      txtPres,
+      btnNombre,
+      btnElegir,
+    ])
+  }
+
+  // --------------------------------------------------- Paso 2: Teclado táctil v1
+
+  dibujarTecladoTactil() {
+    const { width, height } = VISTA
+    const { clave, pj } = this.heroeActual()
+    const promptSabor = pj.texto_nombre || '¿Cómo te llamas, viajero? ({nombre}):'
+    const textoPrompt = promptSabor.replace('{nombre}', pj.nombre || clave)
+
+    // Velo de fondo modal
+    const fondo = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.96)
+
+    // Texto de sabor
+    const txtSabor = this.add
+      .text(width / 2, 20, textoPrompt, {
+        fontFamily: FUENTE,
+        fontSize: '7px',
+        color: '#9ad09a',
+        align: 'center',
+        wordWrap: { width: width - 40 },
+      })
+      .setOrigin(0.5, 0)
+
+    // Campo de texto del nombre
+    const campoY = 48
+    const campoFondo = this.add
+      .rectangle(width / 2, campoY, 200, 20, 0x1a1a24)
+      .setStrokeStyle(1, 0x8ab4f8, 0.9)
+    const txtCampo = this.add
+      .text(width / 2, campoY, `${this.nombreTemp}_`, {
+        fontFamily: FUENTE,
+        fontSize: '9px',
+        color: '#ffffff',
+      })
+      .setOrigin(0.5)
+
+    // Rejilla de teclas táctiles A–Z
+    const filasTeclas = [
+      ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'],
+      ['J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R'],
+      ['S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', ' '],
+    ]
+
+    const elementosTeclado = [fondo, txtSabor, campoFondo, txtCampo]
+    const teclaW = 20
+    const teclaH = 18
+    const sepX = 4
+    const sepY = 4
+    const startY = 80
+
+    filasTeclas.forEach((fila, fIndex) => {
+      const filaW = fila.length * teclaW + (fila.length - 1) * sepX
+      const startX = (width - filaW) / 2 + teclaW / 2
+      const y = startY + fIndex * (teclaH + sepY)
+
+      fila.forEach((letra, cIndex) => {
+        const x = startX + cIndex * (teclaW + sepX)
+        const teclaFondo = this.add
+          .rectangle(x, y, teclaW, teclaH, 0x222230)
+          .setStrokeStyle(1, 0x555566, 0.8)
+          .setInteractive({ useHandCursor: true })
+        const teclaTxt = this.add
+          .text(x, y, letra === ' ' ? '␣' : letra, {
+            fontFamily: FUENTE,
+            fontSize: '8px',
+            color: '#e8e8e8',
+          })
+          .setOrigin(0.5)
+
+        teclaFondo.on('pointerdown', () => {
+          if (this.nombreTemp.length < MAX_NOMBRE) {
+            this.nombreTemp += letra
+            txtCampo.setText(`${this.nombreTemp}_`)
+          }
+        })
+        elementosTeclado.push(teclaFondo, teclaTxt)
+      })
+    })
+
+    // Fila inferior: Borrar, Restaurar, Aceptar, Cancelar
+    const yAcciones = startY + 3 * (teclaH + sepY) + 6
+
+    const btnBorrar = this.add
+      .text(width / 2 - 90, yAcciones, '⌫ BORRAR', {
+        fontFamily: FUENTE,
+        fontSize: '7px',
+        color: '#e07a7a',
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => {
+        this.nombreTemp = this.nombreTemp.slice(0, -1)
+        txtCampo.setText(`${this.nombreTemp}_`)
+      })
+
+    const btnDefecto = this.add
+      .text(width / 2, yAcciones, 'CANÓNICO', {
+        fontFamily: FUENTE,
+        fontSize: '7px',
+        color: '#aaaaaa',
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => {
+        this.nombreTemp = pj.nombre || clave
+        txtCampo.setText(`${this.nombreTemp}_`)
+      })
+
+    const btnAceptar = this.add
+      .text(width / 2 + 90, yAcciones, '✔ ACEPTAR', {
+        fontFamily: FUENTE,
+        fontSize: '7px',
+        color: '#9ad09a',
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => {
+        const finalNombre = this.nombreTemp.trim() || pj.nombre || clave
+        this.nombresPersonalizados[clave] = finalNombre
+        this.modo = 'heroe'
+        this.renderizarVista()
+      })
+
+    const btnCancelar = this.add
+      .text(width / 2, height - 16, 'VOLVER SIN CAMBIOS', {
+        fontFamily: FUENTE,
+        fontSize: '7px',
+        color: '#777777',
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => {
+        this.modo = 'heroe'
+        this.renderizarVista()
+      })
+
+    elementosTeclado.push(btnBorrar, btnDefecto, btnAceptar, btnCancelar)
+    this.raiz.add(elementosTeclado)
+  }
+
+  // --------------------------------------------------- Paso 3: Selector de Dificultad
+
+  dibujarSeleccionDificultad() {
+    const { width, height } = VISTA
+    const { clave, pj } = this.heroeActual()
+    const nombre = this.nombreActual(clave, pj)
+
+    const titulo = this.add
+      .text(width / 2, 16, 'ELIGE TU DIFICULTAD', {
+        fontFamily: FUENTE,
+        fontSize: '9px',
+        color: '#e0c04a',
+      })
+      .setOrigin(0.5)
+
+    const subtitulo = this.add
+      .text(width / 2, 30, `Viajero: ${nombre} (${pj.titulo})`, {
+        fontFamily: FUENTE,
+        fontSize: '7px',
+        color: '#909090',
+      })
+      .setOrigin(0.5)
+
+    const elementos = [titulo, subtitulo]
+
+    const listaDifs = [
+      { id: 'paseo', ...Datos.dificultades.paseo },
+      { id: 'camino', ...Datos.dificultades.camino },
+      { id: 'ceniza', ...Datos.dificultades.ceniza },
+    ]
+
+    const cardW = width - 40
+    const cardH = 42
+    const startY = 50
+
+    listaDifs.forEach((d, idx) => {
+      const y = startY + idx * (cardH + 8) + cardH / 2
+      const seleccionada = this.dificultad === d.id
+
+      const cardFondo = this.add
+        .rectangle(width / 2, y, cardW, cardH, seleccionada ? 0x1c1c28 : 0x0f0f14)
+        .setStrokeStyle(1, seleccionada ? 0xe0c04a : 0x333344, 0.9)
+        .setInteractive({ useHandCursor: true })
+
+      const cardTitulo = this.add
+        .text(
+          width / 2 - cardW / 2 + 12,
+          y - 12,
+          `${d.nombre} ${d.id === 'camino' ? '(DEFECTO)' : ''}`,
+          {
+            fontFamily: FUENTE,
+            fontSize: '8px',
+            color: seleccionada ? '#e0c04a' : '#ffffff',
+          }
+        )
+
+      const cardDesc = this.add.text(width / 2 - cardW / 2 + 12, y + 2, d.descripcion, {
+        fontFamily: FUENTE,
+        fontSize: '6px',
+        color: '#aaaaaa',
+        wordWrap: { width: cardW - 24 },
+        lineSpacing: 2,
+      })
+
+      cardFondo.on('pointerdown', () => {
+        this.dificultad = d.id
+        this.renderizarVista()
+      })
+
+      elementos.push(cardFondo, cardTitulo, cardDesc)
+    })
+
+    // Botones de pie
+    const btnVolver = this.add
+      .text(width / 2 - 80, height - 20, '◄ CAMBIAR HÉROE', {
+        fontFamily: FUENTE,
+        fontSize: '7px',
+        color: '#909090',
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => {
+        this.modo = 'heroe'
+        this.renderizarVista()
+      })
+
+    const btnEmpezar = this.add
+      .text(width / 2 + 80, height - 20, 'COMENZAR VIAJE ▶', {
+        fontFamily: FUENTE,
+        fontSize: '7px',
+        color: '#e0c04a',
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => this.comenzarPartida())
+
+    this.tweens.add({
+      targets: btnEmpezar,
+      alpha: 0.4,
+      duration: 600,
+      yoyo: true,
+      repeat: -1,
+    })
+
+    elementos.push(btnVolver, btnEmpezar)
+    this.raiz.add(elementos)
+  }
+
+  // --------------------------------------------------- Iniciar partida y pasar a Prólogo
+
+  comenzarPartida() {
+    const { clave, pj } = this.heroeActual()
+    const nombreFinal = this.nombreActual(clave, pj)
+
+    // Crear la partida en el GameState único
+    partida.nuevaPartida(this.avId, clave, this.dificultad)
+    if (nombreFinal) {
+      partida.nombre = nombreFinal
+    }
+    partida.guardar()
+
+    // Pasar a PrologoScene
+    this.scene.start('Prologo', {
+      aventura: this.avId,
+      heroe: clave,
+    })
+  }
+}
+
+export default HeroeScene

@@ -12,6 +12,7 @@ import UiScene from './scenes/UiScene.js'
 import BattleScene from './scenes/BattleScene.js'
 import ArenaScene from './scenes/ArenaScene.js'
 import EpilogoScene from './scenes/EpilogoScene.js'
+import HeroeScene from './scenes/HeroeScene.js'
 
 export const config = {
   type: Phaser.AUTO,
@@ -38,7 +39,7 @@ export const config = {
   fps: {
     target: 60,
   },
-  scene: [BootScene, SelloScene, MenuScene, WorldScene, UiScene, BattleScene, ArenaScene, EpilogoScene],
+  scene: [BootScene, SelloScene, MenuScene, HeroeScene, WorldScene, UiScene, BattleScene, ArenaScene, EpilogoScene],
 }
 
 export default config
