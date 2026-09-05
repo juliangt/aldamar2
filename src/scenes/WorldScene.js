@@ -11,6 +11,7 @@ import { aplicarRes } from '../core/resolucion.js'
 import { partida } from '../core/partida.js'
 import { extraerReclutar, extraerComprar } from '../core/Texto.js'
 import heroePng from '../assets/heroe.png'
+import { crearTexturaHeroe, crearTexturaEnemigo, crearTexturaNpc } from '../core/Sprites.js'
 
 const VELOCIDAD = 110
 const LADO_OPUESTO = { N: 'S', S: 'N', E: 'O', O: 'E' }
@@ -110,8 +111,10 @@ export class WorldScene extends Phaser.Scene {
   // ------------------------------------------------------------------ jugador
 
   crearJugador(mapa) {
+    const heroeId = partida.heroe || 'tilo'
+    this.texHeroe = crearTexturaHeroe(this, heroeId)
     const spawn = this.resolverSpawn(mapa)
-    this.jugador = this.physics.add.sprite(spawn.x, spawn.y, 'heroe')
+    this.jugador = this.physics.add.sprite(spawn.x, spawn.y, this.texHeroe)
     this.jugador.body.setSize(12, 10)
     this.jugador.body.setOffset(2, 6)
     this.jugador.setCollideWorldBounds(true)
@@ -119,7 +122,7 @@ export class WorldScene extends Phaser.Scene {
     this.physics.add.collider(this.jugador, this.capaObstaculos)
 
     this.crearAnimaciones()
-    this.jugador.anims.play('heroe-abajo')
+    this.jugador.anims.play(`${this.texHeroe}-abajo`)
     this.mirando = 'abajo'
   }
 
@@ -150,20 +153,21 @@ export class WorldScene extends Phaser.Scene {
   }
 
   crearAnimaciones() {
-    if (this.anims.exists('heroe-abajo')) return
+    const tex = this.texHeroe || 'heroe'
+    if (this.anims.exists(`${tex}-abajo`)) return
     const filas = { abajo: 0, arriba: 1, lado: 2 }
     for (const [nombre, fila] of Object.entries(filas)) {
       this.anims.create({
-        key: `heroe-${nombre}`,
-        frames: this.anims.generateFrameNumbers('heroe', {
+        key: `${tex}-${nombre}`,
+        frames: this.anims.generateFrameNumbers(tex, {
           frames: [fila * 3, fila * 3 + 1, fila * 3, fila * 3 + 2],
         }),
         frameRate: 8,
         repeat: -1,
       })
       this.anims.create({
-        key: `heroe-${nombre}-parado`,
-        frames: [{ key: 'heroe', frame: fila * 3 }],
+        key: `${tex}-${nombre}-parado`,
+        frames: [{ key: tex, frame: fila * 3 }],
         frameRate: 1,
       })
     }
@@ -244,29 +248,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   texturaNpc(id) {
-    const paletas = [
-      ['#c8a06a', '#5a3a20', '#3e5a3e', '#8a8a8a'], // piel, pelo, túnica, bastón
-      ['#c8a06a', '#d8d0b0', '#5a4a7a', '#7a5a3a'],
-      ['#b08858', '#222222', '#7a3030', '#5a5a3a'],
-      ['#c8a06a', '#888888', '#3a5a7a', '#6a6a6a'],
-    ]
-    const p =
-      paletas[[...id].reduce((a, c) => a + c.charCodeAt(0), 0) % paletas.length]
-    return this.texturaCanvas(`npc:${id}`, 32, 16, (g) => {
-      const px = (x, y, w, h, c) => {
-        g.fillStyle = c
-        g.fillRect(x, y, w, h)
-      }
-      for (const f of [0, 1]) {
-        const ox = f * 16
-        px(ox + 5, 2, 6, 5, p[0]) // cabeza
-        px(ox + 5, 1, 6, 2, p[1]) // pelo
-        px(ox + 4, 7, 8, 6, p[2]) // túnica
-        px(ox + 5 + f, 13, 2, 3, '#2a2a2a') // piernas (alternan)
-        px(ox + 9 - f, 13, 2, 3, '#2a2a2a')
-        px(ox + 12, 4 + f, 2, 11, p[3]) // bastón
-      }
-    })
+    return crearTexturaNpc(this, id)
   }
 
   crearTexturasFx() {
@@ -385,29 +367,7 @@ export class WorldScene extends Phaser.Scene {
 
   // Textura de enemigo en el mundo (misma clave que usa BattleScene).
   texturaEnemigo(id) {
-    const clave = `enemigo:${id}`
-    if (this.textures.exists(clave)) return clave
-    const colores = {
-      lobo: '#5a5a6a', espectro: '#8a9ab0', trasgo: '#7a8a4a',
-      lobero: '#6a5a4a', capitan: '#9a6a5a', custodio: '#b0c0c8',
-    }
-    const cv = document.createElement('canvas')
-    cv.width = 16
-    cv.height = 16
-    const g = cv.getContext('2d')
-    const color = colores[id] || '#7a7a8a'
-    g.fillStyle = color
-    g.fillRect(4, 2, 8, 6)
-    g.fillStyle = '#c03030'
-    g.fillRect(5, 4, 2, 2)
-    g.fillRect(9, 4, 2, 2)
-    g.fillStyle = color
-    g.fillRect(3, 8, 10, 6)
-    g.fillStyle = '#0a0a0a'
-    g.fillRect(4, 14, 3, 2)
-    g.fillRect(9, 14, 3, 2)
-    this.textures.addCanvas(clave, cv)
-    return clave
+    return crearTexturaEnemigo(this, id)
   }
 
   // Los enemigos del lugar son un grupo: tocar cualquiera inicia un combate
@@ -869,10 +829,11 @@ export class WorldScene extends Phaser.Scene {
     } else {
       this.jugador.body.setVelocity(0)
     }
+    const tex = this.texHeroe || 'heroe'
     this.jugador.anims.play(
       moviendo
-        ? `heroe-${this.animDe(this.mirando)}`
-        : `heroe-${this.animDe(this.mirando)}-parado`,
+        ? `${tex}-${this.animDe(this.mirando)}`
+        : `${tex}-${this.animDe(this.mirando)}-parado`,
       true
     )
   }

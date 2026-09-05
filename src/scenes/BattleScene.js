@@ -12,6 +12,7 @@ import Combate from '../core/Combate.js'
 import Texto from '../core/Texto.js'
 import heroePng from '../assets/heroe.png'
 import { VISTA, aplicarRes } from '../core/resolucion.js'
+import { BIOMAS_TONOS, crearTexturaHeroe, crearTexturaEnemigo } from '../core/Sprites.js'
 
 const FUENTE = '"Press Start 2P", monospace'
 const PALETA_ENEMIGO = { lobo: '#5a5a6a', espectro: '#8a9ab0', trasgo: '#7a8a4a', lobero: '#6a5a4a', capitan: '#9a6a5a', custodio: '#b0c0c8' }
@@ -79,13 +80,8 @@ export class BattleScene extends Phaser.Scene {
     const g = this.add.graphics().setDepth(0)
     const { width, height } = VISTA
     // Banda de suelo 1-bit por bioma (tono según el lugar).
-    const tonos = {
-      vegaverde: 0x1a2418, molino: 0x24200f, puente: 0x18202a, bosque: 0x14261c,
-      rioclaro: 0x1f2229, valoria: 0x241f14, minas: 0x1a1a22, cienagas: 0x1c2418,
-      refugio: 0x201c14, yerma: 0x241a16, aguja: 0x1c2028, umbak: 0x28160f,
-      arena: 0x181818,
-    }
-    g.fillStyle(tonos[lugarId] ?? 0x14181c, 1).fillRect(0, 0, width, 170)
+    const tono = BIOMAS_TONOS[lugarId] ?? 0x14181c
+    g.fillStyle(tono, 1).fillRect(0, 0, width, 170)
     g.lineStyle(1, 0x2a3038, 1).lineBetween(0, 148, width, 148)
     // Motivo simple de bioma: línea de horizonte + dientes de sierra.
     g.fillStyle(0x0a0d10, 0.6)
@@ -93,25 +89,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   texturaSpriteEnemigo(id) {
-    const clave = `enemigo:${id}`
-    if (this.textures.exists(clave)) return clave
-    const color = PALETA_ENEMIGO[id] || '#7a7a8a'
-    const cv = document.createElement('canvas')
-    cv.width = 16
-    cv.height = 16
-    const g = cv.getContext('2d')
-    g.fillStyle = color
-    g.fillRect(4, 2, 8, 6) // cabeza
-    g.fillStyle = '#0a0a0a'
-    g.fillRect(5, 4, 2, 2)
-    g.fillRect(9, 4, 2, 2)
-    g.fillStyle = color
-    g.fillRect(3, 8, 10, 6) // cuerpo
-    g.fillStyle = '#0a0a0a'
-    g.fillRect(4, 14, 3, 2)
-    g.fillRect(9, 14, 3, 2)
-    this.textures.addCanvas(clave, cv)
-    return clave
+    return crearTexturaEnemigo(this, id)
   }
 
   texturaSpriteCompanero(id) {
@@ -136,9 +114,9 @@ export class BattleScene extends Phaser.Scene {
 
   crearSprites() {
     const baseY = 96
-    // Héroes: héroe delante, compañeros detrás en diagonal.
+    // Héroes: héroe delante con su paleta propia, compañeros detrás en diagonal.
     this.spritesHeroes = this.combate.heroes.map((h, i) => {
-      const tex = h.tipo === 'heroe' ? 'heroe' : this.texturaSpriteCompanero(h.id)
+      const tex = h.tipo === 'heroe' ? crearTexturaHeroe(this, partida.heroe || 'tilo') : this.texturaSpriteCompanero(h.id)
       const s = this.add
         .sprite(84 - i * 26, baseY - i * 12, tex, h.tipo === 'heroe' ? 0 : undefined)
         .setOrigin(0.5, 1)
