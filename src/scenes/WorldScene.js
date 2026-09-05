@@ -412,17 +412,19 @@ export class WorldScene extends Phaser.Scene {
   }
 
   tocarEnemigo(enemigo) {
+    const ahora = this.game?.loop?.time || Date.now()
+    const vivos = (this.enemigosMapa || []).filter((e) => !e.derrotado)
+    if (!vivos.length) return
+
     if (
       this.transicionando ||
       this.pausado ||
       this.ui?.modal ||
-      this.graciaHuida > this.time.now ||
-      this.scene.isSleeping('Battle')
+      this.graciaHuida > ahora ||
+      this.scene.isActive('Battle')
     )
       return
     this.transicionando = true
-    const vivos = this.enemigosMapa.filter((e) => !e.derrotado)
-    if (!vivos.length) return
 
     // En aguja_cima el combate es estrictamente secuencial: eco_voz → capitan_rehecho → morvath
     const esSecuencial = this.lugarId === 'aguja_cima'
@@ -476,20 +478,22 @@ export class WorldScene extends Phaser.Scene {
         let masCercano = null
         let mejorD = Infinity
         for (const e of this.enemigosMapa || []) {
+          if (e.derrotado || !e.sprite) continue
           const d = Math.hypot(e.sprite.x - this.jugador.x, e.sprite.y - this.jugador.y)
           if (d < mejorD) {
             mejorD = d
             masCercano = e
           }
         }
-        if (masCercano) {
+        if (masCercano && masCercano.sprite) {
           const dx = this.jugador.x - masCercano.sprite.x
           const dy = this.jugador.y - masCercano.sprite.y
           const len = Math.hypot(dx, dy) || 1
           this.jugador.x += (dx / len) * 40
           this.jugador.y += (dy / len) * 40
         }
-        this.graciaHuida = this.time.now + 1500
+        const ahora = this.game?.loop?.time || Date.now()
+        this.graciaHuida = ahora + 1500
         this.ui?.toast('Escapas por los pelos.')
       }
     })

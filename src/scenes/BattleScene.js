@@ -85,7 +85,7 @@ export class BattleScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true })
 
     btn.on('pointerdown', () => {
-      this.log(sec.texto_combate)
+      this.linea(sec.texto_combate)
     })
   }
 
@@ -286,7 +286,9 @@ export class BattleScene extends Phaser.Scene {
     }
     for (const [id, b] of Object.entries(this.botones)) {
       const v = visibles[id] && c.estado !== 'fin'
-      b.zona.setVisible(v).setInteractive(v)
+      b.zona.setVisible(v)
+      if (v) b.zona.setInteractive()
+      else b.zona.disableInteractive()
       b.caja.setVisible(v)
       b.texto.setVisible(v)
     }
@@ -341,44 +343,49 @@ export class BattleScene extends Phaser.Scene {
   // ---------------------------------------------------------------- flujo
 
   async flow() {
-    const c = this.combate
-    await this.linea(
-      `${c.enemigos.map((e) => e.nombre).join(' y ')} ${c.enemigos.length > 1 ? 'se cruzan' : 'se cruza'} en tu camino.`
-    )
-    this.setBotonesActivos(false)
-    await this.reproducir(c.iniciarRonda())
-    while (c.estado !== 'fin') {
-      this.objetivoElegido = null
-      this.cursorObjetivo?.destroy()
-      this.cursorObjetivo = null
-      this.setBotonesActivos(true)
-      this.refrescarBotones()
-      this.modoObjetivo = c.estado === 'objetivo'
-      if (this.modoObjetivo) {
-        await this.linea('¿A quién atacas? (toca al enemigo)')
-        await this.esperarObjetivo()
-      }
-      this.esperandoAccion = true
-      this.accionPendiente = null
-      await new Promise((resolve) => (this.resolveAccion = resolve))
-      this.esperandoAccion = false
+    try {
+      const c = this.combate
+      await this.linea(
+        `${c.enemigos.map((e) => e.nombre).join(' y ')} ${c.enemigos.length > 1 ? 'se cruzan' : 'se cruza'} en tu camino.`
+      )
       this.setBotonesActivos(false)
-      await this.resolverAccionJugador()
-      if (c.estado === 'fin') break
-      if (!this.huidaFallida) {
-        await this.reproducir(c.turnoAliados(this.objetivoElegido || 0))
+      await this.reproducir(c.iniciarRonda())
+      while (c.estado !== 'fin') {
+        this.objetivoElegido = null
+        this.cursorObjetivo?.destroy()
+        this.cursorObjetivo = null
+        this.setBotonesActivos(true)
+        this.refrescarBotones()
+        this.modoObjetivo = c.estado === 'objetivo'
+        if (this.modoObjetivo) {
+          await this.linea('¿A quién atacas? (toca al enemigo)')
+          await this.esperarObjetivo()
+        }
+        this.esperandoAccion = true
+        this.accionPendiente = null
+        await new Promise((resolve) => (this.resolveAccion = resolve))
+        this.esperandoAccion = false
+        this.setBotonesActivos(false)
+        await this.resolverAccionJugador()
         if (c.estado === 'fin') break
-        await this.reproducir(c.turnoEnemigos())
-        if (c.estado === 'fin') break
-        await this.reproducir(c.iniciarRonda())
-      } else {
-        this.huidaFallida = false
-        await this.reproducir(c.iniciarRonda())
+        if (!this.huidaFallida) {
+          await this.reproducir(c.turnoAliados(this.objetivoElegido || 0))
+          if (c.estado === 'fin') break
+          await this.reproducir(c.turnoEnemigos())
+          if (c.estado === 'fin') break
+          await this.reproducir(c.iniciarRonda())
+        } else {
+          this.huidaFallida = false
+          await this.reproducir(c.iniciarRonda())
+        }
       }
+      this.setBotonesActivos(false)
+      this.refrescarBotones()
+      await this.finalizar()
+    } catch (err) {
+      console.error('Error en BattleScene.flow:', err)
+      await this.acabar('victoria')
     }
-    this.setBotonesActivos(false)
-    this.refrescarBotones()
-    await this.finalizar()
   }
 
   esperarObjetivo() {
@@ -406,7 +413,14 @@ export class BattleScene extends Phaser.Scene {
   }
 
   accion(id) {
-    if (!this.esperandoAccion || this.combate.estado === 'fin') return
+    if (this.combate.estado === 'fin') return
+
+    // Si estamos en selección de objetivo y se pulsa una acción, seleccionar primer enemigo vivo por defecto.
+    if (this.modoObjetivo && this.resolveObjetivo) {
+      this.tapEnemigo(0)
+    }
+
+    if (!this.esperandoAccion) return
     if (id === 'objeto') {
       this.esperandoAccion = false
       this.elegirObjeto().then((itemId) => {
@@ -420,7 +434,7 @@ export class BattleScene extends Phaser.Scene {
       })
       return
     }
-    // Con varios enemigos el objetivo ya se eligió con el tap (flujo).
+    // Con varios enemigos el objetivo ya se eligió con el tap (flujo) o se resolvió por defecto.
     this.accionPendiente = { accion: id }
     this.resolveAccion && this.resolveAccion()
   }
@@ -438,7 +452,6 @@ export class BattleScene extends Phaser.Scene {
         this.huidaFallida = true
         await this.reproducir(c.turnoEnemigos())
         if (c.estado === 'fin') return
-        await this.reproducir(c.iniciarRonda())
       }
       return
     }
@@ -578,8 +591,8 @@ export class BattleScene extends Phaser.Scene {
       const res = c.aplicarResultado()
       audio8.sfx('victoria')
       await this.linea('Has vencido.')
-      if (res.xp) await this.linea(`Ganas ${res.xp} de experiencia.`)
-      for (let i = 0; i < res.subidasNivel; i++) {
+      if (res?.xp) await this.linea(`Ganas ${res.xp} de experiencia.`)
+      for (let i = 0; i < (res?.subidasNivel || 0); i++) {
         audio8.sfx('nivel')
         await this.linea('¡Subes de nivel! +5 PV maximos' + (partida.nivel % 2 === 0 ? ' y +1 ataque.' : '.'))
       }
@@ -597,26 +610,65 @@ export class BattleScene extends Phaser.Scene {
       audio8.sfx('derrota')
       await this.linea('La grieta se abre del todo.')
       await this.acabar('caida')
+    } else {
+      c.aplicarResultado?.()
+      await this.acabar(c.resultado || 'victoria')
     }
   }
 
   async acabar(resultado) {
-    await new Promise((r) => this.time.delayedCall(600, r))
-    this.cameras.main.fadeOut(300, 0, 0, 0)
-    await new Promise((r) => this.cameras.main.once('camerafadeoutcomplete', r))
-    this.scene.stop('Battle')
-    if (resultado === 'derrota' || resultado === 'caida') {
-      this.scene.stop('Ui')
-      this.scene.stop('World')
-      this.scene.start('Epilogo', { tipo: resultado === 'caida' ? 'caida' : 'muerte' })
-      return
+    try {
+      await new Promise((r) => {
+        let fired = false
+        const done = () => {
+          if (!fired) {
+            fired = true
+            r()
+          }
+        }
+        this.time.delayedCall(600, done)
+        setTimeout(done, 650)
+      })
+
+      this.cameras.main.fadeOut(300, 0, 0, 0)
+      await new Promise((r) => {
+        let fired = false
+        const done = () => {
+          if (!fired) {
+            fired = true
+            r()
+          }
+        }
+        this.cameras.main.once('camerafadeoutcomplete', done)
+        this.time.delayedCall(350, done)
+        setTimeout(done, 400)
+      })
+
+      if (resultado === 'derrota' || resultado === 'caida') {
+        this.scene.stop('Ui')
+        this.scene.stop('World')
+        this.scene.start('Epilogo', { tipo: resultado === 'caida' ? 'caida' : 'muerte' })
+        this.scene.stop('Battle')
+        return
+      }
+      if (this.origen === 'Arena') {
+        this.scene.stop('Arena')
+        this.scene.start('Arena', { resultado })
+        this.scene.stop('Battle')
+        return
+      }
+
+      this.scene.wake('World', { resultado, idx: this.datosEntrada?.idx })
+      this.scene.stop('Battle')
+    } catch (err) {
+      console.error('Error en BattleScene.acabar:', err)
+      try {
+        this.scene.wake('World', { resultado, idx: this.datosEntrada?.idx })
+      } catch (e) {}
+      try {
+        this.scene.stop('Battle')
+      } catch (e) {}
     }
-    if (this.origen === 'Arena') {
-      this.scene.stop('Arena')
-      this.scene.start('Arena', { resultado })
-      return
-    }
-    this.scene.wake('World', { resultado, idx: this.datosEntrada.idx })
   }
 }
 

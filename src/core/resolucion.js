@@ -11,6 +11,7 @@ export const VISTA = { width: 480, height: 270 }
 
 // Multiplicador entero según cuántas veces cabe la vista en la pantalla.
 export function calcularRes() {
+  if (typeof window === 'undefined') return 1
   const fit = Math.min(window.innerWidth / VISTA.width, window.innerHeight / VISTA.height)
   return Math.max(1, Math.min(4, Math.round(fit)))
 }
