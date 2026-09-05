@@ -523,9 +523,11 @@ export class WorldScene extends Phaser.Scene {
         this.scene.stop('World')
         this.scene.start('Epilogo', { tipo: 'caida' })
       },
-      final: (_elegida, _evento) => {
-        // Fase F: resolución completa de finales
-        this.ui?.toast('(Fase F: final alcanzado)')
+      final: (elegida, evento) => {
+        const res = EventEngine.resolverFinal(partida, evento, elegida)
+        this.scene.stop('Ui')
+        this.scene.stop('World')
+        this.scene.start('Epilogo', res)
       },
     }
   }

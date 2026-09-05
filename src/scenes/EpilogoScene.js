@@ -1,21 +1,37 @@
-// EpilogoScene — stub de Fase D: texto de muerte/caída y vuelta al menú.
-// La Fase F le da el contenido real (epílogos completos, legado, finales).
+// EpilogoScene — resolución de finales, muerte y caída (§5.6 y Fase F).
+// Cierre con sello ASCII + jingle WebAudio y retorno a MenuScene.
 
 import Phaser from 'phaser'
 import Datos from '../core/Datos.js'
+import Texto from '../core/Texto.js'
 import { partida } from '../core/partida.js'
 import GameState from '../core/GameState.js'
+import { audio8, DURACION_JINGLE } from '../core/Audio8.js'
 import { VISTA, aplicarRes } from '../core/resolucion.js'
 
 const FUENTE = '"Press Start 2P", monospace'
+
+const MINI_SELLO = [
+  '    .--.      |    ',
+  '   ( oo )     |    ',
+  '  _/\\__/\\_   _|_   ',
+  ' /  .--.  \\   |    ',
+  ' | ( <> ) |  /|\\   ',
+  ' \\_ `--` _/   |    ',
+  '   |    |          ',
+  ' __|__  |__        ',
+]
 
 export class EpilogoScene extends Phaser.Scene {
   constructor() {
     super('Epilogo')
   }
 
-  init(data) {
-    this.tipo = data?.tipo || 'muerte'
+  init(data = {}) {
+    this.tipo = data.tipo || 'muerte'
+    this.datos = data
+    this.avId = data.aventura || partida.aventura || 'corazon_ceniza'
+    this.heroeId = data.heroe || partida.heroe
   }
 
   create() {
@@ -23,49 +39,132 @@ export class EpilogoScene extends Phaser.Scene {
 
     const { width, height } = VISTA
     this.cameras.main.setBackgroundColor('#000000')
-    const av = Datos.aventura(partida.aventura)
-    const texto =
-      (av.epilogos && av.epilogos[this.tipo]) ||
-      'La aventura termina aqui… (stub de Fase D; epilogos completos en Fase F).'
 
-    this.add
-      .text(width / 2, 40, this.tipo === 'caida' ? 'LA GRIETA' : 'EL FIN', {
+    const av = Datos.aventura(this.avId)
+    const pj = (this.heroeId && av.personajes?.[this.heroeId]) || {}
+
+    let titulo = 'EL FIN'
+    let colorTitulo = '#e0c04a'
+    let texto = ''
+
+    if (this.tipo === 'final') {
+      titulo = (this.datos.final || 'victoria').toUpperCase()
+      colorTitulo = this.datos.estilo === 'aviso' ? '#9a9aa8' : '#e0c04a'
+      texto = this.datos.texto || ''
+    } else if (this.tipo === 'caida') {
+      titulo = 'LA CAÍDA'
+      colorTitulo = '#b04a4a'
+      texto = av.epilogos?.caida || 'La grieta se abre del todo…'
+      if (this.avId) GameState.borrar(this.avId)
+    } else {
+      // muerte
+      titulo = 'LA MUERTE'
+      colorTitulo = '#9a9aa8'
+      const plantilla = av.epilogos?.muerte || 'La aventura termina aquí…'
+      const quien = pj.quien || pj.nombre || partida.nombre || 'el viajero'
+      texto = Texto.tpl(plantilla, {
+        quien,
+        nombre: partida.nombre || pj.nombre || 'el viajero',
+      })
+      if (this.avId) GameState.borrar(this.avId)
+    }
+
+    this.contenedorTexto = this.add.container(0, 0)
+
+    const encabezado = this.add
+      .text(width / 2, 28, titulo, {
         fontFamily: FUENTE,
-        fontSize: '14px',
-        color: this.tipo === 'caida' ? '#b04a4a' : '#9a9aa8',
+        fontSize: '11px',
+        color: colorTitulo,
+        align: 'center',
+        wordWrap: { width: width - 40 },
       })
       .setOrigin(0.5)
 
     const cuerpo = this.add
-      .text(width / 2, height / 2, texto, {
+      .text(width / 2, height / 2 - 2, texto, {
         fontFamily: FUENTE,
         fontSize: '7px',
         color: '#e8e8e8',
         align: 'center',
-        wordWrap: { width: width - 60 },
-        lineSpacing: 6,
+        wordWrap: { width: width - 48 },
+        lineSpacing: 5,
       })
       .setOrigin(0.5)
 
-    this.tweens.add({ targets: cuerpo, alpha: { from: 0, to: 1 }, duration: 1200 })
-
-    const volver = this.add
-      .text(width / 2, height - 30, '▶ volver al menu', {
+    const btnCierre = this.add
+      .text(width / 2, height - 24, '▶ CONTINUAR', {
         fontFamily: FUENTE,
         fontSize: '8px',
         color: '#e0c04a',
       })
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true })
-      .on('pointerdown', () => this.volver())
-    this.tweens.add({ targets: volver, alpha: 0.4, duration: 600, yoyo: true, repeat: -1 })
-    this.input.keyboard.once('keydown-ENTER', () => this.volver())
 
-    // La partida muerta se borra (§8: sin partida, sin legado).
-    if (partida.aventura) GameState.borrar(partida.aventura)
+    this.tweens.add({ targets: cuerpo, alpha: { from: 0, to: 1 }, duration: 800 })
+    this.tweens.add({
+      targets: btnCierre,
+      alpha: 0.4,
+      duration: 600,
+      yoyo: true,
+      repeat: -1,
+    })
+
+    this.contenedorTexto.add([encabezado, cuerpo, btnCierre])
+
+    btnCierre.on('pointerdown', () => this.mostrarCierreSello())
+    this.input.keyboard?.once('keydown-ENTER', () => this.mostrarCierreSello())
+    this.input.keyboard?.once('keydown-SPACE', () => this.mostrarCierreSello())
   }
 
-  volver() {
+  // Cierre de aventura: sello + jingle WebAudio y retorno a MenuScene (§5.6 / Fase F)
+  mostrarCierreSello() {
+    if (this._mostrandoSello) return
+    this._mostrandoSello = true
+
+    this.contenedorTexto.setVisible(false)
+
+    const { width, height } = VISTA
+
+    const selloTexto = this.add
+      .text(width / 2, height / 2 - 14, MINI_SELLO.join('\n'), {
+        fontFamily: FUENTE,
+        fontSize: '8px',
+        color: '#c8c8c8',
+        align: 'center',
+      })
+      .setOrigin(0.5)
+
+    const tituloAldamar = this.add
+      .text(width / 2, height / 2 + 34, 'ALDAMAR', {
+        fontFamily: FUENTE,
+        fontSize: '12px',
+        color: '#ffffff',
+      })
+      .setOrigin(0.5)
+
+    const volverTexto = this.add
+      .text(width / 2, height - 18, 'toca para volver al menu', {
+        fontFamily: FUENTE,
+        fontSize: '7px',
+        color: '#707070',
+      })
+      .setOrigin(0.5)
+
+    // Reproducir jingle oficial
+    audio8.ensure()
+    audio8.jingle(0.14)
+
+    // Al terminar el jingle (o segundo tap), volver al menú
+    this.time.delayedCall(DURACION_JINGLE * 1000 + 400, () => this.volverMenu())
+    this.input.once('pointerdown', () => this.volverMenu())
+    this.input.keyboard?.once('keydown-ENTER', () => this.volverMenu())
+    this.input.keyboard?.once('keydown-SPACE', () => this.volverMenu())
+  }
+
+  volverMenu() {
+    if (this._haVuelto) return
+    this._haVuelto = true
     partida.aventura = null
     this.scene.start('Menu')
   }

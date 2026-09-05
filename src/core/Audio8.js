@@ -45,7 +45,24 @@ export class Audio8 {
   secuencia(notas, vol = 0.15) {
     for (const n of notas) this.nota(n.f, n.d, vol ?? 0.15, n.t || 0)
   }
+
+  jingle(vol = 0.12) {
+    this.secuencia(JINGLE, vol)
+  }
 }
+
+// Jingle oficial (~2 s, onda cuadrada): La menor ascendente y caída.
+export const JINGLE = [
+  { f: 220.0, d: 0.14, t: 0.0 }, // La3
+  { f: 261.6, d: 0.14, t: 0.16 }, // Do4
+  { f: 329.6, d: 0.14, t: 0.32 }, // Mi4
+  { f: 440.0, d: 0.22, t: 0.48 }, // La4
+  { f: 392.0, d: 0.14, t: 0.74 }, // Sol4
+  { f: 329.6, d: 0.14, t: 0.9 }, // Mi4
+  { f: 261.6, d: 0.14, t: 1.06 }, // Do4
+  { f: 220.0, d: 0.5, t: 1.22 }, // La3
+]
+export const DURACION_JINGLE = 2.0
 
 export const audio8 = new Audio8()
 export default audio8

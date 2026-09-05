@@ -13,6 +13,9 @@
 //   ui.caida() → void                grieta a 100 → EpilogoScene(caida)
 
 import Datos from './Datos.js'
+import Texto from './Texto.js'
+import Legacy from './Legacy.js'
+import GameState from './GameState.js'
 
 const TIPOS_ENTRADA = ['narrar', 'emboscar', 'corrupcion', 'curar_grupo', 'otorgar']
 const TIPOS_GATILLO = ['decision', 'final']
@@ -188,7 +191,11 @@ export const EventEngine = {
 
     if (evento.tipo === 'final') {
       if (!limpio) return 'pendiente'
-      const elegida = await ui.decidir(evento.pregunta, evento.opciones, ctx)
+      const opcionesValidas = (evento.opciones || []).filter((op) => {
+        if (!op.requiere_flag) return true
+        return Boolean(gs.flags && gs.flags[op.requiere_flag])
+      })
+      const elegida = await ui.decidir(evento.pregunta, opcionesValidas, ctx)
       if (!elegida) return 'pendiente'
       if (elegida.texto) await ui.decir(elegida.texto, ctx)
       this.marcarConsumida(gs, evento, eventoId, true)
@@ -198,6 +205,64 @@ export const EventEngine = {
 
     await this.ejecutar(gs, eventoId, evento, ui, ctx)
     return 'ejecutado'
+  },
+
+  // ---------------------------------------------------- resolución de final (Fase F)
+
+  // Resuelve el epílogo y final según la spec (§5.6 y Fase F):
+  // 1. Si la opción tiene epílogo propio (brindis, reclamar, etc.) → se usa tal cual con su estilo.
+  // 2. Si es opción base (destruir, etc.) → compara grieta vs umbral_tentado (puro vs tentado).
+  // 3. Añade texto_companeros interpolando {nombres} con los compañeros vivos.
+  // 4. Exporta legado y borra el save actual de la aventura.
+  resolverFinal(gs, evento, elegida) {
+    let textoEpilogo = ''
+    let nombreFinal = ''
+    let estilo = 'epico'
+
+    if (elegida && elegida.epilogo) {
+      textoEpilogo = elegida.epilogo
+      nombreFinal = elegida.final || elegida.titulo
+      estilo = elegida.estilo || 'epico'
+    } else {
+      const umbral = evento.umbral_tentado ?? 60
+      const tentado = gs.grieta >= umbral
+      if (tentado) {
+        textoEpilogo = evento.epilogo_tentado
+        nombreFinal = evento.final_tentado
+        estilo = 'aviso'
+      } else {
+        textoEpilogo = evento.epilogo_puro
+        nombreFinal = evento.final_puro
+        estilo = 'epico'
+      }
+    }
+
+    // Compañeros vivos
+    const companerosVivos = (gs.companeros || []).filter((id) => {
+      const salud = gs.companerosSalud?.[id]
+      return !salud || salud.vida > 0
+    })
+
+    if (companerosVivos.length > 0 && evento.texto_companeros) {
+      const nombres = companerosVivos
+        .map((id) => Datos.recluta(gs.aventura, id)?.nombre || id)
+        .join(', ')
+      const lineaComp = Texto.tpl(evento.texto_companeros, { nombres })
+      textoEpilogo = `${textoEpilogo}\n\n${lineaComp}`
+    }
+
+    // Exportar legado y borrar partida guardada
+    Legacy.exportar(gs, nombreFinal)
+    GameState.borrar(gs.aventura)
+
+    return {
+      tipo: 'final',
+      texto: textoEpilogo,
+      final: nombreFinal,
+      estilo,
+      aventura: gs.aventura,
+      heroe: gs.heroe,
+    }
   },
 }
 
