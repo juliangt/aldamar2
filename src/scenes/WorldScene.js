@@ -207,8 +207,12 @@ export class WorldScene extends Phaser.Scene {
     if (this.transicionando || this.pausado || !hacia) return
 
     const destino = Datos.lugar(this.aventura, hacia)
-    // Puerta con requisito: ítem no presente → toast + cooldown 1 s.
-    if (destino?.requiere && !partida.inventario.includes(destino.requiere)) {
+    // Puerta con requisito: ítem o flag no presente → toast + cooldown 1 s.
+    const cumple =
+      !destino?.requiere ||
+      partida.inventario.includes(destino.requiere) ||
+      partida.tieneFlag(destino.requiere)
+    if (!cumple) {
       if (this.time.now < (this.cooldownToast || 0)) return
       this.cooldownToast = this.time.now + 1000
       this.ui && this.ui.toast(destino.requiere_texto || 'No puedes pasar todavía.')
@@ -412,10 +416,16 @@ export class WorldScene extends Phaser.Scene {
     this.transicionando = true
     const vivos = this.enemigosMapa.filter((e) => !e.derrotado)
     if (!vivos.length) return
+
+    // En aguja_cima el combate es estrictamente secuencial: eco_voz → capitan_rehecho → morvath
+    const esSecuencial = this.lugarId === 'aguja_cima'
+    const enemigosBatalla = esSecuencial ? [vivos[0].id] : vivos.map((e) => e.id)
+    this.enemigoEnCurso = esSecuencial ? vivos[0] : null
+
     this.scene.sleep('Ui')
     this.scene.sleep('World')
     this.scene.launch('Battle', {
-      enemigos: vivos.map((e) => e.id),
+      enemigos: enemigosBatalla,
       origen: 'World',
       lugar: this.lugarId,
     })
@@ -440,9 +450,15 @@ export class WorldScene extends Phaser.Scene {
       }
 
       if (data.resultado === 'victoria') {
-        for (const e of this.enemigosMapa || []) {
-          e.derrotado = true
-          e.sprite.destroy()
+        if (this.enemigoEnCurso) {
+          this.enemigoEnCurso.derrotado = true
+          this.enemigoEnCurso.sprite?.destroy()
+          this.enemigoEnCurso = null
+        } else {
+          for (const e of this.enemigosMapa || []) {
+            e.derrotado = true
+            e.sprite?.destroy()
+          }
         }
         this.enemigosMapa = this.enemigosMapa.filter((e) => !e.derrotado)
       } else if (data.resultado === 'huida') {

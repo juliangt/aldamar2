@@ -146,6 +146,10 @@ export class GameState {
     return true
   }
 
+  tieneFlag(flag) {
+    return !!(this.flags && this.flags[flag])
+  }
+
   // ------------------------------------------------------------ economía
 
   tieneLenguaMercado() {
