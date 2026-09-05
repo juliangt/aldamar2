@@ -175,6 +175,101 @@ describe('EventEngine — decisiones por gatillo', () => {
     expect(await EventEngine.gatillo(p, 'coronado', ui)).toBe('ejecutado')
     expect(ui.batallas).toEqual([['espectro', 'espectro']])
   })
+
+  it('consejo: ambas ramas entregan estandarte con distinta flag (alianza vs deposito)', async () => {
+    const ev = DatosEvento('consejo')
+
+    // Rama 1: Jurar alianza
+    const p1 = partidaNueva()
+    const ui1 = uiFalsa({ elecciones: [ev.opciones[0]] })
+    await EventEngine.gatillo(p1, 'consejo', ui1)
+    expect(p1.inventario).toContain('estandarte')
+    expect(p1.flags.alianza).toBe(true)
+    expect(p1.flags.deposito).toBeUndefined()
+
+    // Rama 2: Depósito
+    const p2 = partidaNueva()
+    const ui2 = uiFalsa({ elecciones: [ev.opciones[1]] })
+    await EventEngine.gatillo(p2, 'consejo', ui2)
+    expect(p2.inventario).toContain('estandarte')
+    expect(p2.flags.deposito).toBe(true)
+    expect(p2.flags.alianza).toBeUndefined()
+  })
+
+  it('corona: la rama de dejarla no otorga item ni flag ni grieta', async () => {
+    const ev = DatosEvento('corona')
+    const uiDejar = uiFalsa({ elecciones: [ev.opciones[1]] })
+    await EventEngine.gatillo(p, 'corona', uiDejar)
+    expect(p.inventario).not.toContain('corona_plata')
+    expect(p.flags.coronado).toBeUndefined()
+    expect(p.grieta).toBe(0)
+  })
+
+  it('umbral: texto alternativo a partir de grieta 40', () => {
+    const ev = DatosEvento('umbral')
+    p.grieta = 39
+    expect(EventEngine.textoDe(ev, p)).toBe(ev.texto)
+    p.grieta = 40
+    expect(EventEngine.textoDe(ev, p)).toBe(ev.texto_grieta)
+  })
+
+  it('ceniza_sabe: embosca si no_flag alianza y se desactiva si hay alianza', async () => {
+    const ev = DatosEvento('ceniza_sabe')
+    // Sin alianza -> condición cumplida -> emboscada
+    expect(EventEngine.condicionCumplida(p, ev.condicion)).toBe(true)
+    await EventEngine.ejecutar(p, 'ceniza_sabe', ev, ui)
+    expect(ui.batallas).toEqual([['espectro', 'espectro']])
+
+    // Con alianza -> condición no cumplida -> se desactiva
+    p.flags.alianza = true
+    expect(EventEngine.condicionCumplida(p, ev.condicion)).toBe(false)
+  })
+
+  it('otorgar: entrega ítem, muestra texto y emite toast', async () => {
+    const evOtorgar = {
+      tipo: 'otorgar',
+      item: 'provisiones',
+      texto: 'Un ermitaño te tiende un saco con provisiones.',
+    }
+    await EventEngine.ejecutar(p, 'test_otorgar', evOtorgar, ui)
+    expect(p.inventario).toContain('provisiones')
+    expect(ui.dichos[0]).toBe(evOtorgar.texto)
+    expect(ui.toasts[0]).toContain('provisiones')
+    expect(ui.refrescos).toBe(1)
+  })
+})
+
+describe('Puertas con requisito (requiere) en Corazón de Ceniza', () => {
+  let p
+  beforeEach(() => {
+    p = partidaNueva()
+  })
+
+  it('minas exige antorcha para cruzar', () => {
+    const minas = Datos.lugar('corazon_ceniza', 'minas')
+    expect(minas.requiere).toBe('antorcha')
+    expect(minas.requiere_texto).toContain('antorcha')
+
+    // Sin antorcha: no cumple
+    expect(p.inventario.includes(minas.requiere)).toBe(false)
+
+    // Con antorcha: cumple
+    p.inventario.push('antorcha')
+    expect(p.inventario.includes(minas.requiere)).toBe(true)
+  })
+
+  it('yerma exige estandarte para cruzar', () => {
+    const yerma = Datos.lugar('corazon_ceniza', 'yerma')
+    expect(yerma.requiere).toBe('estandarte')
+    expect(yerma.requiere_texto).toContain('estandarte')
+
+    // Sin estandarte: no cumple
+    expect(p.inventario.includes(yerma.requiere)).toBe(false)
+
+    // Con estandarte: cumple
+    p.inventario.push('estandarte')
+    expect(p.inventario.includes(yerma.requiere)).toBe(true)
+  })
 })
 
 describe('GameState — grieta y curación de grupo (Fase E)', () => {
@@ -213,3 +308,4 @@ describe('GameState — grieta y curación de grupo (Fase E)', () => {
 function DatosEvento(id) {
   return Datos.evento('corazon_ceniza', id)
 }
+

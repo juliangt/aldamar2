@@ -33,36 +33,36 @@ aquí el motor ya sabe lanzarlos.
 
 ## Tareas
 
-- [ ] `core/EventEngine.js`: dado `(aventura, lugar)`, procesa `eventos[]`:
+- [x] `core/EventEngine.js`: dado `(aventura, lugar)`, procesa `eventos[]`:
       cola de «presentaciones» (diálogo/decisión/batalla) que se ejecuta
       secuencialmente con Promises; consume `una_vez` solo cuando se muestra.
-- [ ] Condiciones: `flag: X` (activa), `no_flag: X` (no activa). Las flags
+- [x] Condiciones: `flag: X` (activa), `no_flag: X` (no activa). Las flags
       viven en `GameState.flags`; las activan las decisiones (campo `flag` o
       `clave` según el evento) y se persisten.
-- [ ] `narrar`: diálogo con `texto`; si `grieta_desde: N` y grieta ≥ N →
+- [x] `narrar`: diálogo con `texto`; si `grieta_desde: N` y grieta ≥ N →
       `texto_grieta`. Casos piloto: `forja` (N=12) y `umbral` (N=40).
-- [ ] `decision`: `SelectorOpciones` (botones `titulo` + `detalle`, estilos
+- [x] `decision`: `SelectorOpciones` (botones `titulo` + `detalle`, estilos
       1-bit); al elegir → diálogo con `texto` de la opción y aplicar efectos:
       `item` (añadir a inventario + toast), `flag`, `corrupcion` (± puntos ×
       Balance). El texto original `(Recibes: X.)` ya viene en `texto`: se
       muestra tal cual.
-- [ ] `emboscar`: diálogo con `texto` → `BattleScene` en modo forzado
+- [x] `emboscar`: diálogo con `texto` → `BattleScene` en modo forzado
       (sin huida si los enemigos la bloquean; sin retirar sprites del mundo:
       los enemigos del evento no existen en el mapa). Casos: `ceniza_sabe`
       (2 espectros, si `no_flag: alianza`), `coronado` (si `flag: coronado`).
-- [ ] `corrupcion`: diálogo breve con `aviso` + `puntos × Balance` a la
+- [x] `corrupcion`: diálogo breve con `aviso` + `puntos × Balance` a la
       grieta (cienagas 8). HUD de grieta: barra 0–100 junto a PV/monedas.
-- [ ] `curar_grupo`: cura total del grupo + `corrupcion` negativa × Balance
+- [x] `curar_grupo`: cura total del grupo + `corrupcion` negativa × Balance
       (ritual −15). `una_vez`.
-- [ ] `otorgar`: entrega `item` + `texto` (campanilla en la saga; aquí se
+- [x] `otorgar`: entrega `item` + `texto` (campanilla en la saga; aquí se
       prueba con datos dev).
-- [ ] Grieta ≥ 100 (por cualquier vía, incluido el comando `corazon` en
+- [x] Grieta ≥ 100 (por cualquier vía, incluido el comando `corazon` en
       combate): transición inmediata a `EpilogoScene(caida)`.
-- [ ] Puertas `requiere` con inventario real: al cruzar hacia minas
+- [x] Puertas `requiere` con inventario real: al cruzar hacia minas
       (`antorcha`), yerma (`estandarte`), etc. → si falta, `requiere_texto`.
-- [ ] Greybox de los 7 mapas restantes de `corazon_ceniza` con sus objetos
+- [x] Greybox de los 7 mapas restantes de `corazon_ceniza` con sus objetos
       (enemigos, NPCs, gatillos, salidas) según los JSON.
-- [ ] Validador de coherencia mapa↔JSON en carga (consola dev): avisa de
+- [x] Validador de coherencia mapa↔JSON en carga (consola dev): avisa de
       NPC/enemigo/evento definido en JSON sin objeto en el mapa y viceversa.
 
 ## Detalle técnico
@@ -105,12 +105,12 @@ exigiendo estandarte, y la puerta al final lista para la Fase F.
 
 ## Criterios de aceptación
 
-- [ ] Cada evento de la tabla se comporta según su tipo y condición (probar
+- [x] Cada evento de la tabla se comporta según su tipo y condición (probar
       ambas ramas de cada decisión y los textos con/sin grieta).
-- [ ] Ninguna decisión re-entrega ítems ni se repite al re-entrar.
-- [ ] La grieta sube/baja multiplicada por dificultad y a 100 dispara la caída.
-- [ ] Las puertas `requiere` funcionan en los dos sentidos (con y sin ítem).
-- [ ] El validador no reporta descoordinación JSON↔mapa en los 12 lugares.
+- [x] Ninguna decisión re-entrega ítems ni se repite al re-entrar.
+- [x] La grieta sube/baja multiplicada por dificultad y a 100 dispara la caída.
+- [x] Las puertas `requiere` funcionan en los dos sentidos (con y sin ítem).
+- [x] El validador no reporta descoordinación JSON↔mapa en los 12 lugares.
 
 ## Fuera de alcance (van en...)
 
