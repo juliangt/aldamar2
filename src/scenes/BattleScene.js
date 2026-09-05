@@ -46,12 +46,31 @@ export class BattleScene extends Phaser.Scene {
     this.crearSprites()
     this.crearLog()
     this.crearBotones()
+    this.crearCuervoBatalla()
 
     this.input.keyboard.on('keydown-SPACE', () => this.acelerarLog())
     this.input.keyboard.on('keydown-ENTER', () => this.acelerarLog())
 
     this.cameras.main.fadeIn(250)
     this.flow()
+  }
+
+  crearCuervoBatalla() {
+    const sec = Datos.aventura(this.combate.aventura)?.secretos?.cuervo
+    if (!sec) return
+    const { width } = VISTA
+    const cuervo = this.add
+      .text(width - 20, 16, '𓅃', {
+        fontSize: '11px',
+        color: '#888899',
+      })
+      .setOrigin(0.5)
+      .setDepth(3100)
+      .setInteractive({ useHandCursor: true })
+
+    cuervo.on('pointerdown', () => {
+      this.log(sec.texto_combate)
+    })
   }
 
   // ------------------------------------------------------------ fondo/sprites

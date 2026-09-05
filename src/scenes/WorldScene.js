@@ -69,6 +69,7 @@ export class WorldScene extends Phaser.Scene {
     this.crearEnemigos(mapa, lugar)
     this.crearGatillos(mapa, lugar)
     this.crearDescanso(mapa, lugar)
+    this.crearCuervoExterior(mapa)
     this.validarObjetos(mapa, lugar)
 
     const cam = this.cameras.main
@@ -681,6 +682,70 @@ export class WorldScene extends Phaser.Scene {
     }
   }
 
+  // ---------------------------------------------------- Secretos v1: Cuervo
+  crearCuervoExterior(mapa) {
+    this.cuervo = null
+    const sec = Datos.aventura(this.aventura)?.secretos?.cuervo
+    if (!sec) return
+
+    const exteriores = ['vegaverde', 'molino', 'puente', 'bosque', 'cienagas', 'yerma']
+    if (!exteriores.includes(this.lugarId)) return
+
+    const x = Math.min(mapa.widthInPixels - 48, Math.max(48, Math.round(mapa.widthInPixels / 2 + 32)))
+    const y = 48
+
+    const tex = this.texturaCuervo()
+    const sprite = this.add
+      .sprite(x, y, tex)
+      .setDepth(25)
+      .setInteractive({ useHandCursor: true })
+
+    const burbuja = this.add
+      .text(x, y - 10, '!', {
+        fontFamily: FUENTE,
+        fontSize: '8px',
+        color: '#e0c04a',
+      })
+      .setOrigin(0.5)
+      .setVisible(false)
+      .setDepth(26)
+
+    this.cuervo = { sprite, burbuja, x, y }
+    sprite.on('pointerdown', () => this.interactuarCuervo())
+  }
+
+  texturaCuervo() {
+    const clave = 'secreto:cuervo'
+    if (this.textures.exists(clave)) return clave
+    return this.texturaCanvas(clave, 16, 16, (g) => {
+      g.fillStyle = '#181822'
+      g.fillRect(5, 5, 6, 6) // cuerpo
+      g.fillRect(7, 2, 4, 4) // cabeza
+      g.fillRect(11, 4, 3, 2) // pico
+      g.fillRect(3, 7, 4, 4) // ala
+      g.fillRect(6, 11, 2, 3) // patas
+      g.fillStyle = partida.semilla === 42 ? '#ffffff' : '#e0c04a' // ojo plateado si semilla 42
+      g.fillRect(9, 3, 1, 1)
+    })
+  }
+
+  async interactuarCuervo() {
+    const sec = Datos.aventura(this.aventura)?.secretos?.cuervo
+    if (!sec) return
+
+    let texto = ''
+    if (partida.semilla === 42 && sec.semillas?.['42']) {
+      texto = sec.semillas['42']
+    } else {
+      partida.npcVistos = partida.npcVistos || {}
+      const idx = (partida.npcVistos['secreto:cuervo'] || 0) % sec.textos.length
+      texto = sec.textos[idx]
+      partida.npcVistos['secreto:cuervo'] = idx + 1
+      partida.guardar()
+    }
+    await this.ui.decir(texto)
+  }
+
   // Entrada al lugar: descripción (primera visita) + eventos de entrada (narrar,
   // corrupcion, curar_grupo, emboscar, otorgar) en el orden de `lugar.eventos[]`.
   async iniciarLugar() {
@@ -712,6 +777,11 @@ export class WorldScene extends Phaser.Scene {
       npc.burbuja.setVisible(d < 40)
       considerar(0, d, 'Hablar', 'npc', npc)
     }
+    if (this.cuervo) {
+      const d = Math.hypot(this.cuervo.sprite.x - j.x, this.cuervo.sprite.y - j.y)
+      this.cuervo.burbuja.setVisible(d < 40)
+      considerar(0, d, 'Caw', 'cuervo', this.cuervo)
+    }
     for (const g of this.gatillos || []) {
       const consumido = EventEngine.consumida(partida, g.evento, g.eventoId, true)
       if (g.marcador) g.marcador.setVisible(!consumido)
@@ -735,6 +805,7 @@ export class WorldScene extends Phaser.Scene {
     const it = this.interactuable
     if (!it || this.transicionando || this.pausado || this.ui?.modal) return
     if (it.tipo === 'npc') this.hablar(it.ref)
+    else if (it.tipo === 'cuervo') this.interactuarCuervo()
     else if (it.tipo === 'gatillo') this.activarGatillo(it.ref)
     else if (it.tipo === 'objeto') this.recoger(it.ref)
     else if (it.tipo === 'descanso') this.descansar()
