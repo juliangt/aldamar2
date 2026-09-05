@@ -1,8 +1,8 @@
-# Aldamar (Dosaldamar)
+# Aldamar 2
 
 [![CI](https://github.com/juliangt/aldamar2/actions/workflows/ci.yml/badge.svg)](https://github.com/juliangt/aldamar2/actions/workflows/ci.yml)
 
-**Aldamar** es un RPG táctil 8-bit por turnos para navegador móvil y escritorio, remake del juego de texto original *Dosaldamar*. Presenta exploración top-down en 39 mapas Tiled, diálogos interactivos, economía y tiendas, compañeros reclutables, combate táctico por turnos con jefes por fases, sistema de corrupción de la Grieta (0–100), audio sintetizado en tiempo real y un meta-sistema de legado persistente entre sus cuatro aventuras.
+**Aldamar 2** es un RPG táctil 8-bit por turnos para navegador móvil y escritorio, secuela directa de [Aldamar](https://github.com/juliangt/aldamar). Presenta exploración top-down en 39 mapas Tiled, diálogos interactivos, economía y tiendas, compañeros reclutables, combate táctico por turnos con jefes por fases, sistema de corrupción de la Grieta (0–100), audio sintetizado en tiempo real y un meta-sistema de legado persistente entre sus cuatro aventuras.
 
 - **Motor:** [Phaser 4](https://phaser.io) + [Vite](https://vitejs.dev)
 - **Audio:** Sintetizador WebAudio procedural 8-bit (cero archivos externos)
@@ -57,7 +57,7 @@ El juego contiene cuatro aventuras independientes pero encadenadas por el **lega
 
 ## Créditos y Licencias
 
-- **Diseño de juego, narrativa y programación:** Basado en el universo original de *Dosaldamar*.
+- **Diseño de juego, narrativa y programación:** Secuela y expansión del universo de [Aldamar](https://github.com/juliangt/aldamar).
 - **Sprites y Tileset:** Kenney ([Tiny Dungeon](https://kenney.nl/assets/tiny-dungeon)), bajo licencia de Dominio Público [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).
 - **Tipografía:** *Press Start 2P* por CodeMan38, bajo licencia [SIL Open Font License](http://scripts.sil.org/OFL).
 - **Música y Efectos Sonoros:** Generados proceduralmente en el cliente con WebAudio API.
@@ -83,20 +83,6 @@ npm test
 # Compilación para producción
 npm run build
 
-# Vista previa de producción
+# Vista preview de producción
 npm run preview
 ```
-
-## Estado de las Fases del Proyecto
-
-| Fase | Descripción | Estado |
-| :---: | :--- | :---: |
-| **0** | Cimientos (Vite, Phaser 4, escala y audio context) | ✅ |
-| **A** | Mapa Tiled y movimiento táctil top-down | ✅ |
-| **B** | Diálogos modales e interacción con PNJs | ✅ |
-| **C** | Inventario, equipo y economía de tiendas | ✅ |
-| **D** | Motor de combate por turnos y habilidades | ✅ |
-| **E** | Eventos narrativos, emboscadas y sistema de Grieta | ✅ |
-| **F** | Meta-juego, autosave y legado persistente | ✅ |
-| **G** | Generación de los 39 mapas y contenido de las 4 aventuras | ✅ |
-| **H** | Pulido sonoro, accesibilidad móvil, balance y build RC | ✅ |
