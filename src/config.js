@@ -40,7 +40,18 @@ export const config = {
   fps: {
     target: 60,
   },
-  scene: [BootScene, SelloScene, MenuScene, HeroeScene, PrologoScene, WorldScene, UiScene, BattleScene, ArenaScene, EpilogoScene],
+  scene: [
+    BootScene,
+    SelloScene,
+    MenuScene,
+    HeroeScene,
+    PrologoScene,
+    WorldScene,
+    UiScene,
+    BattleScene,
+    ...(import.meta.env.DEV ? [ArenaScene] : []),
+    EpilogoScene,
+  ],
 }
 
 export default config

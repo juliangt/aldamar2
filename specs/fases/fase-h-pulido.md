@@ -49,27 +49,27 @@
       (`visibilitychange`), sin audio fantasma, reanudar sin perder estado.
 
 ### Build y entrega
-- [ ] `vite build` limpio; tamaño total razonable (< ~2 MB sin contar mapas).
-- [ ] Despliegue estático ( cualquier hosting de ficheros) + prueba en el
+- [x] `vite build` limpio; tamaño total razonable (< ~2 MB sin contar mapas).
+- [x] Despliegue estático ( cualquier hosting de ficheros) + prueba en el
       móvil desde el URL final, con manifesto/PWA básico si se desea
       «instalable» (opcional).
-- [ ] Quitar la `ArenaScene` y el botón dev del build de producción
+- [x] Quitar la `ArenaScene` y el botón dev del build de producción
       (tras cerrar el balance).
-- [ ] README de jugador: cómo jugar, créditos de assets (Kenney CC0),
+- [x] README de jugador: cómo jugar, créditos de assets (Kenney CC0),
       aviso de lore sin spoilers.
 
 ## Criterios de aceptación (RC)
 
-- [ ] Build de producción jugable en un móvil real, de sello a sello, sin
+- [x] Build de producción jugable en un móvil real, de sello a sello, sin
       errores de consola ni caídas de fps visibles.
-- [ ] Jingle y SFX presentes con toggle de volumen; el audio arranca tras el
+- [x] Jingle y SFX presentes con toggle de volumen; el audio arranca tras el
       primer toque en iOS/Android.
-- [ ] Tres partidas de playtesting completas registradas (una por
+- [x] Tres partidas de playtesting completas registradas (una por
       dificultad) en `docs/playtesting.md` con los ajustes derivados
       aplicados o descartados por escrito.
-- [ ] Todos los puntos del Apéndice A de la spec maestra cerrados
+- [x] Todos los puntos del Apéndice A de la spec maestra cerrados
       (validados o decididos explícitamente).
-- [ ] Las 4 aventuras y los 6 finales de la campaña 1 verificados en el
+- [x] Las 4 aventuras y los 6 finales de la campaña 1 verificados en el
       build final.
 
 ## Definición de terminado (recordatorio de la maestra)

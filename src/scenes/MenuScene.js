@@ -237,14 +237,17 @@ export class MenuScene extends Phaser.Scene {
       elementosBotones.push(btnEmpezar)
     }
 
-    // Acceso oculto dev (Arena)
-    const btnArena = this.add
-      .text(10, height - 12, '≡', { fontFamily: FUENTE, fontSize: '8px', color: '#444444' })
-      .setInteractive({ useHandCursor: true })
-      .on('pointerdown', () => {
-        if (!partida.aventura) partida.nuevaPartida('corazon_ceniza', 'tilo')
-        this.scene.start('Arena')
-      })
+    // Acceso oculto dev (Arena) exclusivamente en desarrollo
+    let btnDevArena = null
+    if (import.meta.env.DEV) {
+      btnDevArena = this.add
+        .text(10, height - 12, '≡', { fontFamily: FUENTE, fontSize: '8px', color: '#444444' })
+        .setInteractive({ useHandCursor: true })
+        .on('pointerdown', () => {
+          if (!partida.aventura) partida.nuevaPartida('corazon_ceniza', 'tilo')
+          this.scene.start('Arena')
+        })
+    }
 
     this.raiz.add([
       miniSello,
@@ -259,7 +262,7 @@ export class MenuScene extends Phaser.Scene {
       descAv,
       txtEstado,
       ...elementosBotones,
-      btnArena,
+      ...(btnDevArena ? [btnDevArena] : []),
     ])
   }
 
