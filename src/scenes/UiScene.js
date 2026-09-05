@@ -10,8 +10,9 @@ import DialogBox from '../ui/DialogBox.js'
 import SelectorOpciones from '../ui/SelectorOpciones.js'
 import InventarioUI from '../ui/InventarioUI.js'
 import TiendaUI from '../ui/TiendaUI.js'
-import { VISTA, aplicarRes } from '../core/resolucion.js'
+import { VISTA, aplicarRes, alRelayout } from '../core/resolucion.js'
 import { audio8 } from '../core/Audio8.js'
+import { alternarPantallaCompleta, estaPantallaCompleta } from '../core/pantalla.js'
 
 const FUENTE = '"Press Start 2P", monospace'
 
@@ -68,6 +69,20 @@ export class UiScene extends Phaser.Scene {
       }
       this.mundo && this.mundo.alternarPausa()
     })
+
+    // Giro de dispositivo: re-encuadre de HUD, táctil, pausa y modales.
+    alRelayout(this, () => this.relayout())
+  }
+
+  // Re-posiciona toda la interfaz contra la nueva vista (270×480 ⇄ 480×270)
+  // sin perder estado: diálogos, decisiones, inventario, tienda y pausa.
+  relayout() {
+    this.menuTactil?.relayout()
+    this.dialogo?.relayout()
+    this.selector?.relayout()
+    this.inventario?.relayout()
+    this.tienda?.relayout()
+    this.relayoutPausa()
   }
 
   abrirInventario() {
@@ -215,56 +230,46 @@ export class UiScene extends Phaser.Scene {
   }
 
   crearPausa() {
-    const { width, height } = VISTA
     this.pausaContenedor = this.add.container(0, 0).setDepth(4000).setVisible(false)
 
     // Velo que bloquea el paso al mundo
-    const velo = this.add
-      .rectangle(width / 2, height / 2, width, height, 0x000000, 0.75)
-      .setInteractive()
-    this.pausaContenedor.add(velo)
+    this.pausaVelo = this.add.rectangle(0, 0, 1, 1, 0x000000, 0.75).setInteractive()
+    this.pausaContenedor.add(this.pausaVelo)
 
     // Panel central
-    const anchoCaja = Math.min(width - 32, 280)
-    const altoCaja = 196
-    const cx = width / 2
-    const cy = height / 2
-
-    const fondo = this.add
-      .rectangle(cx, cy, anchoCaja, altoCaja, 0x121418, 0.95)
+    this.pausaFondo = this.add
+      .rectangle(0, 0, 1, 1, 0x121418, 0.95)
       .setStrokeStyle(1, 0xe8e8e8, 0.9)
-    this.pausaContenedor.add(fondo)
+    this.pausaContenedor.add(this.pausaFondo)
 
-    const tit = this.add
-      .text(cx, cy - 74, '— PAUSA —', {
-        fontFamily: FUENTE,
-        fontSize: '10px',
-        color: '#e0c04a',
-      })
-      .setOrigin(0.5)
-    this.pausaContenedor.add(tit)
+    this.pausaTitulo = this.add.text(0, 0, '— PAUSA —', {
+      fontFamily: FUENTE,
+      fontSize: '10px',
+      color: '#e0c04a',
+    })
+    .setOrigin(0.5)
+    this.pausaContenedor.add(this.pausaTitulo)
 
-    this.pausaInfo = this.add
-      .text(cx, cy - 54, '', {
-        fontFamily: FUENTE,
-        fontSize: '6px',
-        color: '#8a9a8a',
-        align: 'center',
-        lineSpacing: 3,
-      })
-      .setOrigin(0.5)
+    this.pausaInfo = this.add.text(0, 0, '', {
+      fontFamily: FUENTE,
+      fontSize: '6px',
+      color: '#8a9a8a',
+      align: 'center',
+      lineSpacing: 3,
+    })
+    .setOrigin(0.5)
     this.pausaContenedor.add(this.pausaInfo)
 
     // Botones con hit areas accesibles (≥ 48 px interactivos)
     // 1. Reanudar
-    const btnReanudar = this.crearBotonPausa(cx, cy - 24, 180, 24, 'REANUDAR', () => {
+    this.btnReanudar = this.crearBotonPausa(0, 0, 180, 24, 'REANUDAR', () => {
       audio8.sfx('confirmar')
       this.mundo && this.mundo.alternarPausa()
     })
-    this.pausaContenedor.add(btnReanudar)
+    this.pausaContenedor.add(this.btnReanudar)
 
     // 2. Audio Toggle (Mute / Unmute)
-    this.btnAudioToggle = this.crearBotonPausa(cx, cy + 8, 180, 24, 'AUDIO: ACTIVADO', () => {
+    this.btnAudioToggle = this.crearBotonPausa(0, 0, 180, 24, 'AUDIO: ACTIVADO', () => {
       audio8.toggleMute()
       audio8.sfx('confirmar')
       this.actualizarTextosPausa()
@@ -272,27 +277,33 @@ export class UiScene extends Phaser.Scene {
     this.pausaContenedor.add(this.btnAudioToggle)
 
     // 3. Fila de Volumen: [ - ]  VOL 80%  [ + ]
-    const btnVolMenos = this.crearBotonPausa(cx - 70, cy + 40, 36, 24, '-', () => {
+    this.btnVolMenos = this.crearBotonPausa(0, 0, 36, 24, '-', () => {
       audio8.setVolumen(Math.max(0, audio8.volumenMaster - 0.1))
       audio8.sfx('confirmar')
       this.actualizarTextosPausa()
     })
-    this.txtVolumen = this.add
-      .text(cx, cy + 40, 'VOL 80%', {
-        fontFamily: FUENTE,
-        fontSize: '7px',
-        color: '#e8e8e8',
-      })
-      .setOrigin(0.5)
-    const btnVolMas = this.crearBotonPausa(cx + 70, cy + 40, 36, 24, '+', () => {
+    this.txtVolumen = this.add.text(0, 0, 'VOL 80%', {
+      fontFamily: FUENTE,
+      fontSize: '7px',
+      color: '#e8e8e8',
+    })
+    .setOrigin(0.5)
+    this.btnVolMas = this.crearBotonPausa(0, 0, 36, 24, '+', () => {
       audio8.setVolumen(Math.min(1, audio8.volumenMaster + 0.1))
       audio8.sfx('confirmar')
       this.actualizarTextosPausa()
     })
-    this.pausaContenedor.add([btnVolMenos, this.txtVolumen, btnVolMas])
+    this.pausaContenedor.add([this.btnVolMenos, this.txtVolumen, this.btnVolMas])
 
-    // 4. Salir al Menú Principal
-    const btnSalir = this.crearBotonPausa(cx, cy + 72, 180, 24, 'GUARDAR Y SALIR', () => {
+    // 4. Pantalla completa (nativo del navegador; en iOS sigue en ventana)
+    this.btnPantallaCompleta = this.crearBotonPausa(0, 0, 180, 24, 'PANTALLA COMPLETA', () => {
+      audio8.sfx('confirmar')
+      alternarPantallaCompleta().then(() => this.actualizarTextosPausa())
+    })
+    this.pausaContenedor.add(this.btnPantallaCompleta)
+
+    // 5. Salir al Menú Principal
+    this.btnSalir = this.crearBotonPausa(0, 0, 180, 24, 'GUARDAR Y SALIR', () => {
       audio8.sfx('confirmar')
       partida.guardar()
       audio8.detenerAmbiente(false)
@@ -300,7 +311,34 @@ export class UiScene extends Phaser.Scene {
       this.scene.stop('World')
       this.scene.start('Menu')
     })
-    this.pausaContenedor.add(btnSalir)
+    this.pausaContenedor.add(this.btnSalir)
+
+    this.relayoutPausa()
+  }
+
+  // Encuadre del panel de pausa contra la vista actual.
+  relayoutPausa() {
+    if (!this.pausaContenedor) return
+    const { width, height } = VISTA
+    const anchoCaja = Math.min(width - 32, 280)
+    const altoCaja = 232
+    const cx = width / 2
+    const cy = height / 2
+
+    this.pausaVelo.setPosition(cx, cy).setSize(width, height)
+    if (this.pausaVelo.input?.hitArea?.setSize) {
+      this.pausaVelo.input.hitArea.setSize(width, height)
+    }
+    this.pausaFondo.setPosition(cx, cy).setSize(anchoCaja, altoCaja)
+    this.pausaTitulo.setPosition(cx, cy - 92)
+    this.pausaInfo.setPosition(cx, cy - 72)
+    this.btnReanudar.setPosition(cx, cy - 42)
+    this.btnAudioToggle.setPosition(cx, cy - 10)
+    this.btnVolMenos.setPosition(cx - 70, cy + 22)
+    this.txtVolumen.setPosition(cx, cy + 22)
+    this.btnVolMas.setPosition(cx + 70, cy + 22)
+    this.btnPantallaCompleta.setPosition(cx, cy + 54)
+    this.btnSalir.setPosition(cx, cy + 86)
   }
 
   crearBotonPausa(x, y, w, h, texto, onClick) {
@@ -336,6 +374,11 @@ export class UiScene extends Phaser.Scene {
     if (this.txtVolumen) {
       const pct = Math.round(audio8.volumenMaster * 100)
       this.txtVolumen.setText(`VOL ${pct}%`)
+    }
+    if (this.btnPantallaCompleta) {
+      this.btnPantallaCompleta.setEtiqueta(
+        estaPantallaCompleta() ? 'MODO VENTANA' : 'PANTALLA COMPLETA'
+      )
     }
   }
 

@@ -14,17 +14,23 @@
 
 ## Cómo jugar
 
+### Orientación y pantalla
+- **Móvil en vertical (agarre natural):** la vista lógica es 270×480; todo el juego (menús, mundo, combate, paneles) se re-organiza para el formato vertical.
+- **Móvil en horizontal:** al girar el dispositivo la vista pasa a 480×270 en caliente, sin recargar ni perder la partida (un combate en curso se re-encuadra y continúa).
+- **Ordenador:** pantalla completa automática al primer clic (tecla `F` o el botón del menú de pausa para alternarla en cualquier momento).
+
 ### En móvil / táctil
 - **D-Pad (abajo-izquierda):** Mueve al héroe en 8 direcciones.
 - **Botón A (abajo-derecha):** Acción contextual inteligente según la proximidad (Hablar, Coger, Entrar, Atacar).
 - **Botón ≡ (arriba-derecha):** Abre el panel de Inventario y Equipo.
-- **Botón ⏸ (arriba-derecha):** Menú de Pausa y Opciones de Audio (Silenciar, Control de Volumen, Salir guardando).
+- **Botón ⏸ (arriba-derecha):** Menú de Pausa y Opciones de Audio (Silenciar, Control de Volumen, Pantalla completa, Salir guardando).
 - **Toque en pantalla:** Avanza diálogos rápidamente y selecciona opciones de menú.
 
 ### En ordenador / teclado
 - **Moverse:** `W`, `A`, `S`, `D` o `Flechas de dirección`.
 - **Acción / Confirmar:** `E`, `Espacio` o `Enter`.
 - **Pausa / Cancelar:** `Escape (ESC)`.
+- **Pantalla completa:** `F`.
 
 ---
 
@@ -52,6 +58,7 @@ El juego contiene cuatro aventuras independientes pero encadenadas por el **lega
   - *El camino:* El equilibrio clásico con el que fue concebida la aventura.
   - *Yermos de Ceniza:* Enemigos brutales, corrupción despiadada y penalización de curación para veteranos.
 - **Ciclo de vida móvil y accesibilidad:** Pausa automática al pasar a segundo plano (`visibilitychange`) eliminando ruidos fantasma, botones táctiles con áreas de interacción ≥ 48 px e interfaz optimizada a 60 fps.
+- **Orientación adaptativa:** vista vertical (270×480) u horizontal (480×270) detectada de forma nativa; al girar el dispositivo todas las escenas se re-encuadran en caliente (el combate re-organiza héroes/enemigos/botones, los diálogos re-paginan su texto pendiente) y en escritorio el juego pide pantalla completa al primer gesto.
 
 ---
 

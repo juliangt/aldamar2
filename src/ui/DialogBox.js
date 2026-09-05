@@ -2,6 +2,8 @@
 // 1-bit, typewriter ~30 car./s, paginación automática (Texto.paginar) y avance
 // con tap (1º completa la página, 2º pasa). Basada en Promise para encadenar
 // «evento → diálogo → decisión» sin callbacks anidados (Fases C/D/E).
+// Adaptativa: al girar el dispositivo re-geometría y re-pagina el texto que
+// queda por leer sin cerrar el diálogo (la Promise sigue viva).
 
 import Phaser from 'phaser'
 import Texto from '../core/Texto.js'
@@ -10,41 +12,24 @@ import { audio8 } from '../core/Audio8.js'
 
 const FUENTE = '"Press Start 2P", monospace'
 const CAR_POR_SG = 30
+const ALTO_CAJA = 84
 
 export class DialogBox {
   constructor(escena) {
     this.escena = escena
-    const { width, height } = VISTA
-    this.anchoCaja = width - 12
-    this.altoCaja = 84
-    this.x = 6
-    this.y = height - this.altoCaja - 6
-
-    // Capacidad real en caracteres de la fuente pixel (medida, no supuesta).
-    const prueba = escena.add.text(0, 0, 'MM', { fontFamily: FUENTE, fontSize: '8px' }).setVisible(false)
-    this.anchoChar = prueba.width / 2
-    this.lineaChar = prueba.height + 4
-    prueba.destroy()
-    this.carPorLinea = Math.floor((this.anchoCaja - 16) / this.anchoChar)
-    this.lineasPorPagina = Math.floor((this.altoCaja - 16) / this.lineaChar)
-
     this.contenedor = escena.add.container(0, 0).setDepth(3500).setVisible(false)
 
-    // Zona a pantalla completa: el tap no atraviesa al mundo (bloqueo modal).
-    this.zona = escena.add.zone(width / 2, height / 2, width, height).setInteractive()
+    this.zona = escena.add.zone(0, 0, 1, 1).setInteractive()
     this.zona.on('pointerdown', () => this.avanzar())
-
-    this.fondo = escena.add
-      .rectangle(this.x + this.anchoCaja / 2, this.y + this.altoCaja / 2, this.anchoCaja, this.altoCaja, 0x000000, 0.78)
-      .setStrokeStyle(1, 0xe8e8e8, 0.9)
-    this.texto = escena.add.text(this.x + 8, this.y + 8, '', {
+    this.fondo = escena.add.rectangle(0, 0, 1, 1, 0x000000, 0.78).setStrokeStyle(1, 0xe8e8e8, 0.9)
+    this.texto = escena.add.text(0, 0, '', {
       fontFamily: FUENTE,
       fontSize: '8px',
       color: '#e8e8e8',
       lineSpacing: 4,
     })
     this.indicador = escena.add
-      .text(this.x + this.anchoCaja - 12, this.y + this.altoCaja - 12, '▸', {
+      .text(0, 0, '▸', {
         fontFamily: FUENTE,
         fontSize: '8px',
         color: '#e8e8e8',
@@ -59,9 +44,69 @@ export class DialogBox {
     this.resolver = null
     this.abierto = false
 
+    this.aplicarGeometria()
+
     this.escena.input.keyboard.on('keydown-SPACE', () => this.avanzar())
     this.escena.input.keyboard.on('keydown-ENTER', () => this.avanzar())
     this.escena.input.keyboard.on('keydown-E', () => this.avanzar())
+  }
+
+  // Geometría contra la vista actual: banda inferior a 6 px del borde.
+  aplicarGeometria() {
+    const { width, height } = VISTA
+    this.anchoCaja = width - 12
+    this.altoCaja = ALTO_CAJA
+    this.x = 6
+    this.y = height - this.altoCaja - 6
+
+    // Capacidad real en caracteres de la fuente pixel (medida, no supuesta).
+    const prueba = this.escena.add
+      .text(0, 0, 'MM', { fontFamily: FUENTE, fontSize: '8px' })
+      .setVisible(false)
+    this.anchoChar = prueba.width / 2
+    this.lineaChar = prueba.height + 4
+    prueba.destroy()
+    this.carPorLinea = Math.max(8, Math.floor((this.anchoCaja - 16) / this.anchoChar))
+    this.lineasPorPagina = Math.max(2, Math.floor((this.altoCaja - 16) / this.lineaChar))
+
+    // Zona a pantalla completa: el tap no atraviesa al mundo (bloqueo modal).
+    this.zona.setPosition(width / 2, height / 2).setSize(width, height)
+    if (this.zona.input?.hitArea?.setSize) this.zona.input.hitArea.setSize(width, height)
+    this.fondo.setPosition(this.x + this.anchoCaja / 2, this.y + this.altoCaja / 2)
+    this.fondo.setSize(this.anchoCaja, this.altoCaja)
+    this.texto.setPosition(this.x + 8, this.y + 8)
+    this.indicador.setPosition(this.x + this.anchoCaja - 12, this.y + this.altoCaja - 12)
+  }
+
+  // Re-geometría al girar el dispositivo. Si hay un diálogo abierto, el
+  // texto pendiente se re-pagina para el nuevo ancho y el typewriter
+  // continúa donde iba (o la página queda completada si ya lo estaba).
+  relayout() {
+    const escribia = this.escribiendo
+    const charsPrevios = this.chars
+    this.aplicarGeometria()
+
+    if (this.abierto && !this.botones && this.paginas.length) {
+      const pendiente = this.paginas.slice(this.pagina).join('\n')
+      this.paginas = Texto.paginar(pendiente, this.carPorLinea, this.lineasPorPagina)
+      this.pagina = 0
+      if (escribia) {
+        this.chars = Math.min(charsPrevios, this.paginas[0]?.length ?? 0)
+        this.texto.setText(this.paginas[0]?.slice(0, this.chars) ?? '')
+      } else {
+        this.texto.setText(this.paginas[0] ?? '')
+      }
+    }
+
+    // Pregunta abierta: recolocar los botones con el nuevo ancho.
+    if (this.abierto && this.botones) {
+      const n = this.botones.length
+      this.botones.forEach((grupo, i) => {
+        const bx = this.x + 24 + i * (this.anchoCaja / n)
+        const by = this.y + this.altoCaja / 2
+        grupo.forEach((o) => o.setPosition(bx, by))
+      })
+    }
   }
 
   // Muestra un texto (string con \n literales) y resuelve al terminarlo.
@@ -133,6 +178,7 @@ export class DialogBox {
     this.eventoTypewriter?.remove()
     this.eventoTypewriter = null
     this.escribiendo = false
+    this.texto.setText(this.paginas[this.pagina])
     this.indicador.setVisible(true)
     if (!this.parapadeo) {
       this.parapadeo = this.escena.tweens.add({

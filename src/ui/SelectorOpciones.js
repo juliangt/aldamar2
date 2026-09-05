@@ -3,6 +3,7 @@
 // Basado en Promise: resuelve la opción elegida (objeto) o null al cerrar.
 // Emite «dialogo-abierto/cerrado» en el bus de la escena para que el mundo
 // sepa que hay un modal encima (mismo contrato que DialogBox).
+// Adaptativo: al girar el dispositivo se re-renderiza con la nueva vista.
 
 import Phaser from 'phaser'
 import Texto from '../core/Texto.js'
@@ -10,6 +11,7 @@ import { VISTA } from '../core/resolucion.js'
 import { audio8 } from '../core/Audio8.js'
 
 const FUENTE = '"Press Start 2P", monospace'
+const ALTO_CAJA = 84
 
 export class SelectorOpciones {
   constructor(escena) {
@@ -22,19 +24,28 @@ export class SelectorOpciones {
   elegir(pregunta, opciones, ctx = {}) {
     if (!opciones?.length) return Promise.resolve(null)
     this.abierto = true
+    this.datos = { pregunta, opciones, ctx }
+    return new Promise((resolve) => {
+      this.resolver = resolve
+      this.render()
+      this.escena.events.emit('dialogo-abierto')
+    })
+  }
+
+  render() {
+    const { pregunta, opciones, ctx } = this.datos
     const { width } = VISTA
     const contenedor = this.escena.add.container(0, 0).setDepth(3600)
     this.contenedor = contenedor
 
-    const altoCaja = 84
-    const y0 = VISTA.height - altoCaja - 6
+    const y0 = VISTA.height - ALTO_CAJA - 6
     // Velo sobre el mundo: el tap no pasa abajo mientras se decide.
     const velo = this.escena.add
       .zone(width / 2, VISTA.height / 2, width, VISTA.height)
       .setInteractive()
 
     const fondo = this.escena.add
-      .rectangle(6 + (width - 12) / 2, y0 + altoCaja / 2, width - 12, altoCaja, 0x000000, 0.85)
+      .rectangle(6 + (width - 12) / 2, y0 + ALTO_CAJA / 2, width - 12, ALTO_CAJA, 0x000000, 0.85)
       .setStrokeStyle(1, 0xe8e8e8, 0.9)
 
     const textoPregunta = this.escena.add.text(14, y0 + 8, Texto.tpl(pregunta || '', ctx), {
@@ -45,41 +56,47 @@ export class SelectorOpciones {
     })
 
     contenedor.add([velo, fondo, textoPregunta])
-    this.escena.events.emit('dialogo-abierto')
 
-    return new Promise((resolve) => {
-      const altoBoton = Math.min(20, Math.max(14, (altoCaja - 34) / opciones.length))
-      opciones.forEach((op, i) => {
-        const bx = width / 2
-        const by = y0 + 28 + i * (altoBoton + 4) + altoBoton / 2
-        const zona = this.escena.add.zone(bx, by, width - 36, altoBoton).setInteractive()
-        const caja = this.escena.add
-          .rectangle(bx, by, width - 36, altoBoton, 0x000000, 0.5)
-          .setStrokeStyle(1, 0xe0c04a, 0.9)
-        const titulo = this.escena.add
-          .text(bx, by - 3, op.titulo || op.clave, {
-            fontFamily: FUENTE,
-            fontSize: '7px',
-            color: '#e0c04a',
-          })
-          .setOrigin(0.5)
-        const detalle = op.detalle
-          ? this.escena.add
-              .text(bx, by + 5, `· ${op.detalle}`, {
-                fontFamily: FUENTE,
-                fontSize: '6px',
-                color: '#8a8a8a',
-              })
-              .setOrigin(0.5)
-          : null
-        zona.on('pointerdown', () => {
-          audio8.sfx('confirmar')
-          this.cerrar()
-          resolve(op)
+    const altoBoton = Math.min(20, Math.max(14, (ALTO_CAJA - 34) / opciones.length))
+    opciones.forEach((op, i) => {
+      const bx = width / 2
+      const by = y0 + 28 + i * (altoBoton + 4) + altoBoton / 2
+      const zona = this.escena.add.zone(bx, by, width - 36, altoBoton).setInteractive()
+      const caja = this.escena.add
+        .rectangle(bx, by, width - 36, altoBoton, 0x000000, 0.5)
+        .setStrokeStyle(1, 0xe0c04a, 0.9)
+      const titulo = this.escena.add
+        .text(bx, by - 3, op.titulo || op.clave, {
+          fontFamily: FUENTE,
+          fontSize: '7px',
+          color: '#e0c04a',
         })
-        contenedor.add([zona, caja, titulo, ...(detalle ? [detalle] : [])])
+        .setOrigin(0.5)
+      const detalle = op.detalle
+        ? this.escena.add
+            .text(bx, by + 5, `· ${op.detalle}`, {
+              fontFamily: FUENTE,
+              fontSize: '6px',
+              color: '#8a8a8a',
+            })
+            .setOrigin(0.5)
+        : null
+      zona.on('pointerdown', () => {
+        audio8.sfx('confirmar')
+        this.cerrar()
+        this.resolver(op)
+        this.resolver = null
       })
+      contenedor.add([zona, caja, titulo, ...(detalle ? [detalle] : [])])
     })
+  }
+
+  // Re-render contra la nueva vista (mismos datos, misma Promise pendiente).
+  relayout() {
+    if (!this.abierto || !this.datos) return
+    this.contenedor?.destroy()
+    this.contenedor = null
+    this.render()
   }
 
   cerrar() {
@@ -87,6 +104,7 @@ export class SelectorOpciones {
     this.abierto = false
     this.contenedor?.destroy()
     this.contenedor = null
+    this.datos = null
     this.escena.events.emit('dialogo-cerrado')
   }
 }

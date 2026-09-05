@@ -16,6 +16,12 @@ export class TiendaUI extends PanelUI {
     this.onCambio = onCambio || (() => {})
   }
 
+  // Giro de dispositivo: repintado del catálogo abierto (pintar usa la
+  // geometría actualizada del panel).
+  alCambiarVista() {
+    if (this.abierto) this.pintar()
+  }
+
   abrir(lugarId) {
     this.lugarId = lugarId
     const lugar = Datos.lugar(partida.aventura, lugarId)

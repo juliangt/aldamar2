@@ -11,7 +11,7 @@ import { partida } from '../core/partida.js'
 import Combate from '../core/Combate.js'
 import Texto from '../core/Texto.js'
 import heroePng from '../assets/heroe.png'
-import { VISTA, aplicarRes } from '../core/resolucion.js'
+import { VISTA, aplicarRes, alRelayout, esVistaVertical } from '../core/resolucion.js'
 import { BIOMAS_TONOS, crearTexturaHeroe, crearTexturaEnemigo } from '../core/Sprites.js'
 import { audio8 } from '../core/Audio8.js'
 
@@ -37,7 +37,6 @@ export class BattleScene extends Phaser.Scene {
   create() {
     aplicarRes(this)
 
-    const { width, height } = VISTA
     this.scene.bringToTop() // dibujar sobre Mundo/Ui/Arena
     this.cameras.main.setBackgroundColor('#101418')
 
@@ -53,8 +52,66 @@ export class BattleScene extends Phaser.Scene {
     this.input.keyboard.on('keydown-SPACE', () => this.acelerarLog())
     this.input.keyboard.on('keydown-ENTER', () => this.acelerarLog())
 
+    // Giro de dispositivo: re-encuadre del combate sin perder su estado
+    // (el flujo async y las Promises pendientes siguen vivas).
+    alRelayout(this, () => this.relayout())
+
     this.cameras.main.fadeIn(250)
     this.flow()
+  }
+
+  // ------------------------------------------------------- layout adaptativo
+  // Horizontal (480×270): héroes a la izquierda, enemigos a la derecha.
+  // Vertical (270×480): enemigos arriba, héroes debajo; el log y los
+  // botones ocupan la franja inferior.
+
+  posHeroe(i) {
+    if (esVistaVertical()) return { x: 72 + i * 22, y: VISTA.height - 170 - i * 22 }
+    return { x: 84 - i * 26, y: 96 - i * 12 }
+  }
+
+  posEnemigo(i) {
+    if (esVistaVertical()) {
+      return { x: 168 + (i % 2) * 56, y: 150 + Math.floor(i / 2) * 64 }
+    }
+    return { x: 356 + i * 30, y: 96 + i * 10 }
+  }
+
+  // Re-encuadre completo al cambiar la orientación.
+  relayout() {
+    this.dibujarFondo(this.datosEntrada.lugar)
+    this.spritesHeroes?.forEach((s, i) => {
+      const p = this.posHeroe(i)
+      s.setPosition(p.x, p.y)
+    })
+    this.spritesEnemigos?.forEach((s, i) => {
+      if (!s) return
+      const p = this.posEnemigo(i)
+      s.setPosition(p.x, p.y)
+    })
+    this.reposicionarBarras()
+    this.relayoutLog()
+    this.relayoutBotones()
+    this.btnSecreto?.setPosition(VISTA.width - 20, 16)
+    // Transitorios: se vuelven a crear al vuelo si hacen falta.
+    this.cursorObjetivo?.destroy()
+    this.cursorObjetivo = null
+    if (this.selectorObjeto) {
+      const resolver = this.selectorObjetoResolver
+      this.selectorObjeto.destroy()
+      this.selectorObjeto = null
+      this.selectorObjetoResolver = null
+      // Vuelve al menú de acciones sin gastar turno.
+      resolver && resolver(null)
+    }
+  }
+
+  reposicionarBarras() {
+    for (const actor of [...this.combate.heroes, ...this.combate.enemigos]) {
+      if (!actor._sprite) continue
+      actor._barra?.setPosition(actor._sprite.x, actor._sprite.y - actor._sprite.displayHeight - 12)
+      actor._nombre?.setPosition(actor._sprite.x, actor._sprite.y + 4)
+    }
   }
 
   crearSecretoBatalla() {
@@ -75,7 +132,7 @@ export class BattleScene extends Phaser.Scene {
     }
     const icono = iconos[clave] || '✧'
     const { width } = VISTA
-    const btn = this.add
+    this.btnSecreto = this.add
       .text(width - 20, 16, icono, {
         fontSize: '11px',
         color: '#888899',
@@ -84,7 +141,7 @@ export class BattleScene extends Phaser.Scene {
       .setDepth(3100)
       .setInteractive({ useHandCursor: true })
 
-    btn.on('pointerdown', () => {
+    this.btnSecreto.on('pointerdown', () => {
       this.linea(sec.texto_combate)
     })
   }
@@ -95,16 +152,23 @@ export class BattleScene extends Phaser.Scene {
 
   // ------------------------------------------------------------ fondo/sprites
 
+  // Banda de suelo 1-bit por bioma, redibujable al cambiar la orientación.
   dibujarFondo(lugarId) {
+    this.gfxFondo?.destroy()
     const g = this.add.graphics().setDepth(0)
+    this.gfxFondo = g
     const { width, height } = VISTA
-    // Banda de suelo 1-bit por bioma (tono según el lugar).
+    const vertical = esVistaVertical()
+    // Franja de escenario: en vertical el log/botones dejan ~115 px abajo.
+    const sueloAlto = vertical ? height - 115 : 170
+    const lineaY = vertical ? height - 130 : 148
+    // Tono según el lugar.
     const tono = BIOMAS_TONOS[lugarId] ?? 0x14181c
-    g.fillStyle(tono, 1).fillRect(0, 0, width, 170)
-    g.lineStyle(1, 0x2a3038, 1).lineBetween(0, 148, width, 148)
+    g.fillStyle(tono, 1).fillRect(0, 0, width, sueloAlto)
+    g.lineStyle(1, 0x2a3038, 1).lineBetween(0, lineaY, width, lineaY)
     // Motivo simple de bioma: línea de horizonte + dientes de sierra.
     g.fillStyle(0x0a0d10, 0.6)
-    for (let x = 0; x < width; x += 24) g.fillRect(x, 144, 12, 4)
+    for (let x = 0; x < width; x += 24) g.fillRect(x, lineaY - 4, 12, 4)
   }
 
   texturaSpriteEnemigo(id) {
@@ -132,23 +196,24 @@ export class BattleScene extends Phaser.Scene {
   }
 
   crearSprites() {
-    const baseY = 96
     // Héroes: héroe delante con su paleta propia, compañeros detrás en diagonal.
     this.spritesHeroes = this.combate.heroes.map((h, i) => {
       const tex = h.tipo === 'heroe' ? crearTexturaHeroe(this, partida.heroe || 'tilo') : this.texturaSpriteCompanero(h.id)
+      const p = this.posHeroe(i)
       const s = this.add
-        .sprite(84 - i * 26, baseY - i * 12, tex, h.tipo === 'heroe' ? 0 : undefined)
+        .sprite(p.x, p.y, tex, h.tipo === 'heroe' ? 0 : undefined)
         .setOrigin(0.5, 1)
         .setDepth(100 - i)
         .setFlipX(false)
       this.crearBarra(s, h, 'izq')
       return s
     })
-    // Enemigos a la derecha; jefes (sin_huida o con fases) a doble escala.
+    // Enemigos al lado opuesto; jefes (sin_huida o con fases) a doble escala.
     this.spritesEnemigos = this.combate.enemigos.map((e, i) => {
       const escala = this.esJefe(e) ? 2 : 1
+      const p = this.posEnemigo(i)
       const s = this.add
-        .sprite(356 + i * 30, baseY + i * 10, this.texturaSpriteEnemigo(e.id))
+        .sprite(p.x, p.y, this.texturaSpriteEnemigo(e.id))
         .setOrigin(0.5, 1)
         .setDepth(100 + i)
         .setScale(escala)
@@ -195,8 +260,8 @@ export class BattleScene extends Phaser.Scene {
   // ----------------------------------------------------------------- log
 
   crearLog() {
-    const { width, height } = VISTA
-    this.logY = height - 66
+    const { width } = VISTA
+    this.logY = VISTA.height - 66
     this.logFondo = this.add
       .rectangle(width / 2, this.logY + 26, width - 12, 52, 0x000000, 0.8)
       .setStrokeStyle(1, 0xe8e8e8, 0.8)
@@ -205,12 +270,22 @@ export class BattleScene extends Phaser.Scene {
       .text(12, this.logY + 6, '', { fontFamily: FUENTE, fontSize: '7px', color: '#e8e8e8', wordWrap: { width: width - 40 }, lineSpacing: 3 })
       .setDepth(3001)
     // Zona de acelerado (tap sobre el log).
-    this.add
+    this.logZona = this.add
       .zone(width / 2, this.logY + 26, width, 60)
       .setInteractive()
       .on('pointerdown', () => this.acelerarLog())
       .setDepth(3002)
     this.logResolver = null
+  }
+
+  relayoutLog() {
+    if (!this.logFondo) return
+    const { width, height } = VISTA
+    this.logY = height - 66
+    this.logFondo.setPosition(width / 2, this.logY + 26).setSize(width - 12, 52)
+    this.logTexto.setPosition(12, this.logY + 6).setStyle({ wordWrap: { width: width - 40 } })
+    this.logZona.setPosition(width / 2, this.logY + 26).setSize(width, 60)
+    if (this.logZona.input?.hitArea?.setSize) this.logZona.input.hitArea.setSize(width, 60)
   }
 
   // Muestra una línea; resuelve sola a los MS_LOG o antes con tap.
@@ -241,8 +316,29 @@ export class BattleScene extends Phaser.Scene {
 
   // ---------------------------------------------------------------- botones
 
-  crearBotones() {
+  // Posición del botón i-ésimo: una fila en horizontal; en vertical dos
+  // filas (3+2) para que los cinco comandos no se pisen en 270 px de ancho.
+  posBoton(i, total) {
     const { width } = VISTA
+    if (!esVistaVertical()) {
+      return {
+        x: 12 + i * ((width - 24) / total) + (width - 24) / total / 2 - 6,
+        y: this.logY - 12,
+        w: 82,
+      }
+    }
+    const fila0 = Math.ceil(total / 2)
+    const enFila0 = i < fila0
+    const n = enFila0 ? fila0 : total - fila0
+    const k = enFila0 ? i : i - fila0
+    return {
+      x: (width * (k + 0.5)) / n,
+      y: enFila0 ? this.logY - 38 : this.logY - 14,
+      w: 78,
+    }
+  }
+
+  crearBotones() {
     this.botones = {}
     const c = this.combate
     const esp = Datos.aventura(c.aventura).comando_especial
@@ -255,21 +351,35 @@ export class BattleScene extends Phaser.Scene {
       ['cuerno', 'CUERNO'],
       ['huida', 'HUIDA'],
     ]
+    this.accionesBotones = acciones
     acciones.forEach(([id, etiqueta], i) => {
-      const bx = 12 + i * ((width - 24) / acciones.length) + (width - 24) / acciones.length / 2 - 6
-      const zona = this.add.zone(bx, this.logY - 12, 82, 18).setInteractive().setDepth(3100)
+      const p = this.posBoton(i, acciones.length)
+      const zona = this.add.zone(p.x, p.y, p.w, 18).setInteractive().setDepth(3100)
       const caja = this.add
-        .rectangle(bx, this.logY - 12, 82, 16, 0x000000, 0.6)
+        .rectangle(p.x, p.y, p.w, 16, 0x000000, 0.6)
         .setStrokeStyle(1, 0xe0c04a, 0.8)
         .setDepth(3100)
       const texto = this.add
-        .text(bx, this.logY - 12, etiqueta, { fontFamily: FUENTE, fontSize: '7px', color: '#e0c04a' })
+        .text(p.x, p.y, etiqueta, { fontFamily: FUENTE, fontSize: '7px', color: '#e0c04a' })
         .setOrigin(0.5)
         .setDepth(3101)
       zona.on('pointerdown', () => this.accion(id === 'especial' ? cmdEsp : id))
       this.botones[id] = { zona, caja, texto }
     })
     this.refrescarBotones()
+  }
+
+  relayoutBotones() {
+    if (!this.botones || !this.accionesBotones) return
+    this.accionesBotones.forEach(([id], i) => {
+      const b = this.botones[id]
+      if (!b) return
+      const p = this.posBoton(i, this.accionesBotones.length)
+      b.zona.setPosition(p.x, p.y).setSize(p.w, 18)
+      if (b.zona.input?.hitArea?.setSize) b.zona.input.hitArea.setSize(p.w, 18)
+      b.caja.setPosition(p.x, p.y).setSize(p.w, 16)
+      b.texto.setPosition(p.x, p.y)
+    })
   }
 
   refrescarBotones() {
@@ -311,6 +421,7 @@ export class BattleScene extends Phaser.Scene {
       .map(({ id, n }) => ({ id, etiqueta: `${Datos.item(c.aventura, id).nombre} ×${n}` }))
     if (!opciones.length) return null
     return new Promise((resolve) => {
+      this.selectorObjetoResolver = resolve
       const { width } = VISTA
       this.selectorObjeto = this.add.container(0, 0).setDepth(3200)
       const velo = this.add.rectangle(width / 2, VISTA.height / 2, width, VISTA.height, 0, 0.6).setInteractive()
@@ -523,8 +634,9 @@ export class BattleScene extends Phaser.Scene {
   agregarSpriteRefuerzo(idx) {
     const e = this.combate.enemigos[idx]
     const escala = this.esJefe(e) ? 2 : 1
+    const p = this.posEnemigo(idx)
     const s = this.add
-      .sprite(300 + idx * 30, 96 + idx * 10, this.texturaSpriteEnemigo(e.id))
+      .sprite(p.x, p.y, this.texturaSpriteEnemigo(e.id))
       .setOrigin(0.5, 1)
       .setDepth(100 + idx)
       .setScale(escala)

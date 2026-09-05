@@ -131,11 +131,21 @@ BootScene → SelloScene → MenuScene ⇄ HeroeScene → PrologoScene → World
 
 ### 3.4 Config de juego y escala móvil
 
-- Lienzo base **480×270** (16:9), `Phaser.Scale.FIT` + `CENTER_BOTH`,
-  `pixelArt: true`, `roundPixels: true`; cámara con **zoom 2** (visible ≈ 15×8
-  tiles de 16 px) para legibilidad táctil.
+- Vista lógica **adaptativa a la orientación** (`core/resolucion.js`):
+  **270×480 en vertical** (móvil en mano) u **480×270 en horizontal**
+  (móvil girado / escritorio), `Phaser.Scale.FIT` + `CENTER_BOTH`,
+  `pixelArt: true`, `roundPixels: true`; cámara del mundo con **zoom 2**
+  (visible ≈ 8×15 tiles verticales / 15×8 horizontales de 16 px).
+- Al girar el dispositivo (`resize`/`orientationchange`) `reajustarRes`
+  redimensiona el canvas, re-encuadra las cámaras y emite `vista-relayout`:
+  cada escena/ui re-posiciona su contenido en caliente (el combate
+  re-organiza héroes/enemigos/botones, los diálogos re-paginan el texto
+  pendiente) sin perder estado.
+- **Escritorio:** pantalla completa nativa al primer gesto del usuario
+  (Fullscreen API; tecla `F` y botón en el menú de pausa para alternar).
 - `input.addPointer(3)` (d-pad y botones a la vez), bloquear scroll/zoom del
-  navegador, `user-select: none`, `viewport-fit=cover` (safe areas iOS).
+  navegador, `user-select: none`, `viewport-fit=cover` + `100dvh` (safe
+  areas iOS y barras dinámicas).
 - Objetivo: **60 fps** en un móvil de gama media; mapas ≤ 48×32 tiles.
 
 ### 3.5 Notas de Phaser 4 (4.2.1 instalado)

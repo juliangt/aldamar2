@@ -4,7 +4,7 @@
 import Phaser from 'phaser'
 import Datos from '../core/Datos.js'
 import { partida } from '../core/partida.js'
-import { VISTA, aplicarRes } from '../core/resolucion.js'
+import { VISTA, aplicarRes, alRelayout, esVistaVertical } from '../core/resolucion.js'
 
 const FUENTE = '"Press Start 2P", monospace'
 const MAX_NOMBRE = 12
@@ -35,6 +35,9 @@ export class HeroeScene extends Phaser.Scene {
 
     this.raiz = this.add.container(0, 0)
     this.renderizarVista()
+
+    // Al girar el dispositivo se re-dibuja la pantalla contra la nueva vista.
+    alRelayout(this, () => this.renderizarVista())
   }
 
   heroeActual() {
@@ -61,6 +64,9 @@ export class HeroeScene extends Phaser.Scene {
 
   dibujarSeleccionHeroe() {
     const { width, height } = VISTA
+    const vertical = esVistaVertical()
+    // En vertical (270×480) la tarjeta se baja para centrar el contenido.
+    const dy = vertical ? 80 : 0
     const { clave, pj } = this.heroeActual()
     const total = this.clavesHeroes.length
     const nombre = this.nombreActual(clave, pj)
@@ -110,7 +116,7 @@ export class HeroeScene extends Phaser.Scene {
     const cajaW = width - 36
     const cajaH = 160
     const cajaX = width / 2
-    const cajaY = 40 + cajaH / 2
+    const cajaY = 40 + dy + cajaH / 2
 
     const fondoCaja = this.add
       .rectangle(cajaX, cajaY, cajaW, cajaH, 0x111116, 0.95)
@@ -118,11 +124,15 @@ export class HeroeScene extends Phaser.Scene {
 
     // Nombre y título
     const txtNombre = this.add
-      .text(cajaX, 48, nombre, { fontFamily: FUENTE, fontSize: '11px', color: '#ffffff' })
+      .text(cajaX, 48 + dy, nombre, { fontFamily: FUENTE, fontSize: '11px', color: '#ffffff' })
       .setOrigin(0.5, 0)
 
     const txtTitulo = this.add
-      .text(cajaX, 64, pj.titulo || '', { fontFamily: FUENTE, fontSize: '7px', color: '#9ad09a' })
+      .text(cajaX, 64 + dy, pj.titulo || '', {
+        fontFamily: FUENTE,
+        fontSize: '7px',
+        color: '#9ad09a',
+      })
       .setOrigin(0.5, 0)
 
     // Estadísticas
@@ -133,7 +143,7 @@ export class HeroeScene extends Phaser.Scene {
     const txtStats = this.add
       .text(
         cajaX,
-        78,
+        78 + dy,
         `PV: ${pj.vida}   ATQ: ${pj.ataque}   ORO: ${pj.monedas || 0}\nÍTEMS: ${itemsNombres}`,
         {
           fontFamily: FUENTE,
@@ -141,13 +151,14 @@ export class HeroeScene extends Phaser.Scene {
           color: '#e8d8a8',
           align: 'center',
           lineSpacing: 3,
+          wordWrap: { width: cajaW - 16 },
         }
       )
       .setOrigin(0.5, 0)
 
     // Presentación / rasgo
     const txtPres = this.add
-      .text(cajaX, 102, pj.presentacion || '', {
+      .text(cajaX, 102 + dy, pj.presentacion || '', {
         fontFamily: FUENTE,
         fontSize: '6px',
         color: '#c0c0c0',
@@ -159,7 +170,7 @@ export class HeroeScene extends Phaser.Scene {
 
     // Botones de acción inferiores dentro de la tarjeta
     const btnNombre = this.add
-      .text(cajaX - 70, 184, '✎ CAMBIAR NOMBRE', {
+      .text(cajaX - 70, 184 + dy, '✎ CAMBIAR NOMBRE', {
         fontFamily: FUENTE,
         fontSize: '7px',
         color: '#8ab4f8',
@@ -173,7 +184,7 @@ export class HeroeScene extends Phaser.Scene {
       })
 
     const btnElegir = this.add
-      .text(cajaX + 70, 184, 'ELEGIR HÉROE ▶', {
+      .text(cajaX + 70, 184 + dy, 'ELEGIR HÉROE ▶', {
         fontFamily: FUENTE,
         fontSize: '7px',
         color: '#e0c04a',
@@ -205,6 +216,7 @@ export class HeroeScene extends Phaser.Scene {
 
   dibujarTecladoTactil() {
     const { width, height } = VISTA
+    const dy = esVistaVertical() ? 80 : 0
     const { clave, pj } = this.heroeActual()
     const promptSabor = pj.texto_nombre || '¿Cómo te llamas, viajero? ({nombre}):'
     const textoPrompt = promptSabor.replace('{nombre}', pj.nombre || clave)
@@ -224,7 +236,7 @@ export class HeroeScene extends Phaser.Scene {
       .setOrigin(0.5, 0)
 
     // Campo de texto del nombre
-    const campoY = 48
+    const campoY = 48 + dy
     const campoFondo = this.add
       .rectangle(width / 2, campoY, 200, 20, 0x1a1a24)
       .setStrokeStyle(1, 0x8ab4f8, 0.9)
@@ -248,7 +260,7 @@ export class HeroeScene extends Phaser.Scene {
     const teclaH = 18
     const sepX = 4
     const sepY = 4
-    const startY = 80
+    const startY = 80 + dy
 
     filasTeclas.forEach((fila, fIndex) => {
       const filaW = fila.length * teclaW + (fila.length - 1) * sepX
@@ -344,6 +356,7 @@ export class HeroeScene extends Phaser.Scene {
 
   dibujarSeleccionDificultad() {
     const { width, height } = VISTA
+    const dy = esVistaVertical() ? 60 : 0
     const { clave, pj } = this.heroeActual()
     const nombre = this.nombreActual(clave, pj)
 
@@ -373,7 +386,7 @@ export class HeroeScene extends Phaser.Scene {
 
     const cardW = width - 40
     const cardH = 42
-    const startY = 50
+    const startY = 50 + dy
 
     listaDifs.forEach((d, idx) => {
       const y = startY + idx * (cardH + 8) + cardH / 2

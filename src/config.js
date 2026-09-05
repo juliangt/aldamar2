@@ -1,6 +1,7 @@
-// Config — Phaser móvil-first: 480×270 lógicos, FIT + CENTER_BOTH.
+// Config — Phaser móvil-first con vista adaptativa: 270×480 lógicos en
+// vertical (móvil en mano) u 480×270 en horizontal (móvil girado/escritorio).
 // El canvas se supersamplea ×RES (resolucion.js) para verse nítido en
-// pantalla completa en PC; las coordenadas del juego siguen siendo 480×270.
+// pantalla completa; las escenas posicionan contra VISTA (dinámica).
 
 import Phaser from 'phaser'
 import { VISTA, RES } from './core/resolucion.js'

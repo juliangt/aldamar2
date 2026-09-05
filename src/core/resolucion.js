@@ -1,13 +1,36 @@
-// Resolución — supersampling del canvas manteniendo 480×270 lógicos.
-// El canvas se renderiza a 480×RES × 270×RES y cada cámara multiplica su
-// zoom base por RES: el framing es el mismo, pero el render interno es a
-// resolución nativa de pantalla (texto nítido, estirado CSS ~1:1) en vez
-// de estirar un canvas de 480×270 con nearest-neighbour.
+// Resolución — vista lógica adaptativa a la orientación de la pantalla:
+// vertical (móvil en mano) 270×480 u horizontal (móvil girado / escritorio)
+// 480×270. El canvas se supersamplea ×RES (render interno a resolución
+// nativa) y cada cámara multiplica su zoom base por RES.
+//
+// Al girar el dispositivo, `reajustarRes` cambia VISTA, redimensiona el
+// juego y emite EVENTO_RELAYOUT en el bus del game: cada escena/ui se
+// re-posiciona contra la nueva VISTA sin perder su estado.
 
 import Phaser from 'phaser'
 
-// Tamaño lógico del juego: todas las escenas posicionan contra esto.
-export const VISTA = { width: 480, height: 270 }
+// Tamaños lógicos del juego: todas las escenas posicionan contra VISTA.
+export const VISTA_HORIZONTAL = { width: 480, height: 270 }
+export const VISTA_VERTICAL = { width: 270, height: 480 }
+
+// Orientación de la pantalla con fallback horizontal para entornos sin
+// DOM (SSR / tests de node).
+function tamanoPantalla() {
+  if (typeof window === 'undefined') return VISTA_HORIZONTAL
+  return window.innerHeight > window.innerWidth
+    ? VISTA_VERTICAL
+    : VISTA_HORIZONTAL
+}
+
+export function esPantallaVertical() {
+  return tamanoPantalla() === VISTA_VERTICAL
+}
+
+export let VISTA = tamanoPantalla()
+
+export function esVistaVertical() {
+  return VISTA.height > VISTA.width
+}
 
 // Multiplicador entero según cuántas veces cabe la vista en la pantalla.
 export function calcularRes() {
@@ -18,6 +41,19 @@ export function calcularRes() {
 
 export let RES = calcularRes()
 
+// Evento de re-layout: se emite en el bus del game cuando cambia la
+// orientación. Las escenas se suscriben con `alRelayout`.
+export const EVENTO_RELAYOUT = 'vista-relayout'
+
+// Suscribe `fn` al relayout mientras la escena viva: se desuscribe sola en
+// shutdown/destroy para no dejar listeners huérfanos al cambiar de escena.
+export function alRelayout(escena, fn) {
+  escena.game.events.on(EVENTO_RELAYOUT, fn)
+  const off = () => escena.game.events.off(EVENTO_RELAYOUT, fn)
+  escena.events.once('shutdown', off)
+  escena.events.once('destroy', off)
+}
+
 // Zoom de cámara para la resolución actual. `zoomBase` es el framing que
 // la escena quería a resolución 1 (WorldScene usa 2, el resto 1).
 export function aplicarRes(escena, zoomBase = 1) {
@@ -26,26 +62,34 @@ export function aplicarRes(escena, zoomBase = 1) {
   cam.setZoom(zoomBase * RES)
   // El zoom agranda alrededor del punto medio de la cámara, que por defecto
   // es el del canvas supersampleado: recentrar en el centro lógico para que
-  // el contenido de 480×270 quede encuadrado.
+  // el contenido de la vista quede encuadrado.
   cam.centerOn(VISTA.width / 2, VISTA.height / 2)
 }
 
-// Reajusta la resolución al cambiar el tamaño de ventana (p. ej. al entrar
-// en pantalla completa): tamaño del juego, zoom de las cámaras activas y
-// resolución de los textos ya creados.
+// Reajusta resolución y orientación al cambiar el tamaño de ventana
+// (resize, giro de dispositivo, entrar/salir de pantalla completa):
+// tamaño del juego, zoom de las cámaras activas, resolución de los textos
+// y, si la orientación cambió, aviso de relayout a las escenas.
 export function reajustarRes(game) {
-  const nueva = calcularRes()
-  if (nueva === RES) return false
-  RES = nueva
+  const nuevaVista = tamanoPantalla()
+  const cambiaOrientacion = nuevaVista !== VISTA
+  const nuevaRes = calcularRes()
+  if (!cambiaOrientacion && nuevaRes === RES) return false
+
+  if (cambiaOrientacion) VISTA = nuevaVista
+  RES = nuevaRes
   game.scale.setGameSize(VISTA.width * RES, VISTA.height * RES)
-  for (const escena of game.scene.getScenes(true)) {
+  // Todas las escenas (también dormidas: World/Ui durante un combate),
+  // con guards para las no arrancadas aún.
+  for (const escena of game.scene.getScenes(false)) {
     if (escena.cameras?.main) {
       const cam = escena.cameras.main
       cam.setZoom((escena.zoomBase ?? 1) * RES)
       cam.centerOn(VISTA.width / 2, VISTA.height / 2)
     }
-    ajustarTextos(escena.children.list)
+    if (escena.children?.list) ajustarTextos(escena.children.list)
   }
+  if (cambiaOrientacion) game.events.emit(EVENTO_RELAYOUT)
   return true
 }
 
