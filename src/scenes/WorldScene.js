@@ -5,6 +5,7 @@
 
 import Phaser from 'phaser'
 import Datos from '../core/Datos.js'
+import EventEngine from '../core/EventEngine.js'
 import { aplicarRes } from '../core/resolucion.js'
 import { partida } from '../core/partida.js'
 import { extraerReclutar, extraerComprar } from '../core/Texto.js'
@@ -65,6 +66,7 @@ export class WorldScene extends Phaser.Scene {
     this.crearNpcs(mapa, lugar)
     this.crearPickups(mapa, lugar)
     this.crearEnemigos(mapa, lugar)
+    this.crearGatillos(mapa, lugar)
     this.crearDescanso(mapa, lugar)
     this.validarObjetos(mapa, lugar)
 
@@ -73,11 +75,13 @@ export class WorldScene extends Phaser.Scene {
     aplicarRes(this, 2)
     cam.startFollow(this.jugador, true, 0.5, 0.5)
     cam.fadeIn(250)
-    cam.once('camerafadeincomplete', () => this.mostrarDescripcion())
 
     // Interfaz en paralelo (HUD, banner, táctil, pausa).
     this.ui = this.scene.get('Ui')
     this.scene.launch('Ui', { nombre: lugar.nombre })
+    this.uiAdaptador = this.crearUiAdaptador()
+
+    cam.once('camerafadeincomplete', () => this.iniciarLugar())
 
     this.teclas = this.input.keyboard.addKeys(
       'W,A,S,D,UP,DOWN,LEFT,RIGHT,E,SPACE,ENTER,K,J'
@@ -463,6 +467,16 @@ export class WorldScene extends Phaser.Scene {
       this.scene.wake('Ui')
       this.ui?.refrescarHud()
       if (!data || !data.resultado) return
+
+      // Si venía de una emboscada (EventEngine.emboscar), se resuelve la Promise
+      // y no se tocan enemigos del mapa (los enemigos del evento no existen en él).
+      if (this.resolverBatalla) {
+        const resolver = this.resolverBatalla
+        this.resolverBatalla = null
+        resolver(data.resultado)
+        return
+      }
+
       if (data.resultado === 'victoria') {
         for (const e of this.enemigosMapa || []) {
           e.derrotado = true
@@ -491,6 +505,103 @@ export class WorldScene extends Phaser.Scene {
         this.ui?.toast('Escapas por los pelos.')
       }
     })
+  }
+
+  // ---------------------------------------------------- Fase E: eventos y gatillos
+
+  crearUiAdaptador() {
+    return {
+      decir: (texto, ctx) => this.ui.decir(texto, ctx || this.ctxDialogo()),
+      decidir: (pregunta, opciones, ctx) =>
+        this.ui.elegir(pregunta, opciones, ctx || this.ctxDialogo()),
+      batalla: (enemigos) => this.iniciarCombateForzado(enemigos),
+      toast: (msg) => this.ui?.toast(msg),
+      refrescar: () => this.ui?.refrescarHud(),
+      caida: () => {
+        this.scene.stop('Ui')
+        this.scene.stop('World')
+        this.scene.start('Epilogo', { tipo: 'caida' })
+      },
+      final: (_elegida, _evento) => {
+        // Fase F: resolución completa de finales
+        this.ui?.toast('(Fase F: final alcanzado)')
+      },
+    }
+  }
+
+  iniciarCombateForzado(enemigos) {
+    return new Promise((resolve) => {
+      this.resolverBatalla = resolve
+      this.transicionando = true
+      this.scene.sleep('Ui')
+      this.scene.sleep('World')
+      this.scene.launch('Battle', {
+        enemigos,
+        origen: 'World',
+        lugar: this.lugarId,
+        esEmboscada: true,
+      })
+    })
+  }
+
+  // Gatillos de la capa «eventos»: objetos punto o rect que activan
+  // decisiones o el final al tocarlos o interactuar.
+  crearGatillos(mapa, _lugar) {
+    this.gatillos = []
+    const capa = mapa.getObjectLayer('eventos')
+    if (!capa) return
+    for (const o of capa.objects) {
+      const props = this.leerProps(o)
+      const eventoId = props.evento || o.name
+      if (!eventoId) continue
+      const evento = Datos.evento(this.aventura, eventoId)
+      if (!evento) continue
+
+      const x = o.x + (o.width ? o.width / 2 : 0)
+      const y = o.y + (o.height ? o.height / 2 : 0)
+
+      let marcador = null
+      if (o.point || (!o.width && !o.height)) {
+        marcador = this.add
+          .text(x, y - 8, '✧', { fontFamily: FUENTE, fontSize: '8px', color: '#e8d8a8' })
+          .setOrigin(0.5)
+          .setDepth(y + 1)
+        this.tweens.add({ targets: marcador, y: y - 12, duration: 600, yoyo: true, repeat: -1 })
+      }
+
+      const gatillo = {
+        id: o.id,
+        eventoId,
+        evento,
+        x,
+        y,
+        marcador,
+        props,
+      }
+      this.gatillos.push(gatillo)
+    }
+  }
+
+  async activarGatillo(gatillo) {
+    if (this.transicionando || this.pausado || this.ui?.modal) return
+    const vivos = (this.enemigosMapa || []).filter((e) => !e.derrotado)
+    const limpio = vivos.length === 0
+    const res = await EventEngine.gatillo(
+      partida,
+      gatillo.eventoId,
+      this.uiAdaptador,
+      this.ctxDialogo(),
+      { limpio }
+    )
+    if (res === 'pendiente' && !limpio && gatillo.evento?.tipo === 'final') {
+      this.ui?.toast('Aún quedan enemigos custodiando el lugar.')
+    }
+    if (
+      gatillo.marcador &&
+      EventEngine.consumida(partida, gatillo.evento, gatillo.eventoId, true)
+    ) {
+      gatillo.marcador.setVisible(false)
+    }
   }
 
   // Cama/fogón pintado en la capa «descanso»: punto interactivo en lugares
@@ -530,6 +641,16 @@ export class WorldScene extends Phaser.Scene {
   // se repite) o cadena única. Contador persistente en `npcVistos`.
   async hablar(npc) {
     if (this.transicionando || this.pausado || this.ui?.modal) return
+
+    // Si el NPC tiene una decisión asociada pendiente (p. ej. Dorotea en Ríoclaro)
+    if (npc.id === 'dorotea' && this.lugar.eventos?.includes('encargo')) {
+      const ev = Datos.evento(this.aventura, 'encargo')
+      if (ev && !EventEngine.consumida(partida, ev, 'encargo', true)) {
+        await EventEngine.gatillo(partida, 'encargo', this.uiAdaptador, this.ctxDialogo())
+        return
+      }
+    }
+
     const dato = Datos.dialogo(this.aventura, npc.clave)
     if (!dato) return
     const lista = Array.isArray(dato) ? dato : [dato]
@@ -557,17 +678,24 @@ export class WorldScene extends Phaser.Scene {
     }
   }
 
-  // Primera visita: descripción completa; siguientes: solo el rótulo (Fase A).
-  mostrarDescripcion() {
+  // Entrada al lugar: descripción (primera visita) + eventos de entrada (narrar,
+  // corrupcion, curar_grupo, emboscar, otorgar) en el orden de `lugar.eventos[]`.
+  async iniciarLugar() {
     if (this.transicionando) return
     if (!partida.vistos[this.lugarId] && this.lugar.descripcion) {
       partida.vistos[this.lugarId] = true
       partida.guardar()
-      this.ui?.decir(this.lugar.descripcion, this.ctxDialogo())
+      await this.ui?.decir(this.lugar.descripcion, this.ctxDialogo())
     }
+    await this.procesarEventosEntrada()
   }
 
-  // El objetivo más cercano dentro de radio; prioridad NPC > objeto > salida.
+  async procesarEventosEntrada() {
+    if (this.transicionando) return
+    await EventEngine.alEntrar(partida, this.lugarId, this.uiAdaptador, this.ctxDialogo())
+  }
+
+  // El objetivo más cercano dentro de radio; prioridad NPC > gatillo > objeto > salida.
   actualizarInteractuable() {
     const j = this.jugador
     let mejor = null
@@ -580,6 +708,14 @@ export class WorldScene extends Phaser.Scene {
       const d = Math.hypot(npc.sprite.x - j.x, npc.sprite.y - j.y)
       npc.burbuja.setVisible(d < 40)
       considerar(0, d, 'Hablar', 'npc', npc)
+    }
+    for (const g of this.gatillos || []) {
+      const consumido = EventEngine.consumida(partida, g.evento, g.eventoId, true)
+      if (g.marcador) g.marcador.setVisible(!consumido)
+      if (consumido) continue
+      const d = Math.hypot(g.x - j.x, g.y - j.y)
+      const verbo = g.props.verbo || (g.evento.tipo === 'final' ? 'Forja' : 'Examinar')
+      considerar(0, d, verbo, 'gatillo', g)
     }
     for (const p of this.pickups || [])
       considerar(1, Math.hypot(p.sprite.x - j.x, p.sprite.y - j.y), 'Coger', 'objeto', p)
@@ -596,6 +732,7 @@ export class WorldScene extends Phaser.Scene {
     const it = this.interactuable
     if (!it || this.transicionando || this.pausado || this.ui?.modal) return
     if (it.tipo === 'npc') this.hablar(it.ref)
+    else if (it.tipo === 'gatillo') this.activarGatillo(it.ref)
     else if (it.tipo === 'objeto') this.recoger(it.ref)
     else if (it.tipo === 'descanso') this.descansar()
     else if (it.tipo === 'salida') this.intentarSalida(it.ref.props)

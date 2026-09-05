@@ -102,6 +102,11 @@ export class UiScene extends Phaser.Scene {
     this.hudAtaque.setText(`ATQ ${partida.ataqueEfectivo()} DEF ${partida.defensa()}`)
     this.hudMonedas.setText(`● ${partida.monedas}`)
     this.hudGrieta.setText(`✚ ${partida.grieta}/100 Nv${partida.nivel}`)
+    if (this.hudBarraRelleno) {
+      const w = Math.max(0, Math.min(60, Math.round((partida.grieta / 100) * 60)))
+      this.hudBarraRelleno.width = w
+      this.hudBarraRelleno.setFillStyle(partida.grieta >= 60 ? 0xd04a4a : 0xb07a9a)
+    }
   }
 
   crearHud() {
@@ -133,6 +138,17 @@ export class UiScene extends Phaser.Scene {
         color: '#b07a9a',
       })
       .setDepth(3000)
+
+    // Barra visual 0–100 de la grieta (Fase E)
+    this.hudBarraFondo = this.add
+      .rectangle(8, 56, 60, 4, 0x1a1a24)
+      .setOrigin(0, 0)
+      .setStrokeStyle(1, 0x5a3a5a, 0.8)
+      .setDepth(3000)
+    this.hudBarraRelleno = this.add
+      .rectangle(8, 56, Math.max(0, Math.round((partida.grieta / 100) * 60)), 4, 0xb07a9a)
+      .setOrigin(0, 0)
+      .setDepth(3001)
   }
 
   crearBanner(nombre) {
