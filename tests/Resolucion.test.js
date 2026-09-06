@@ -57,6 +57,26 @@ describe('Orientación adaptativa (VISTA dinámica)', () => {
     // min(1920/480, 1080/270) = 4 → RES 4
     expect(m.calcularRes()).toBe(4)
   })
+
+  it('calcularRes respeta limites superior e inferior', async () => {
+    // muy pequeño (menor a la vista nativa)
+    let m = await importarConPantalla(10, 10)
+    expect(m.calcularRes()).toBe(1) // Math.max(1, ...)
+
+    // muy grande (fit > 4)
+    m = await importarConPantalla(4000, 4000)
+    expect(m.calcularRes()).toBe(4) // Math.min(4, ...)
+  })
+
+  it('calcularRes testea el redondeo correcto', async () => {
+    // fit 1.49 => 1
+    let m = await importarConPantalla(480 * 1.49, 270 * 1.49)
+    expect(m.calcularRes()).toBe(1)
+
+    // fit 1.5 => 2
+    m = await importarConPantalla(480 * 1.5, 270 * 1.5)
+    expect(m.calcularRes()).toBe(2)
+  })
 })
 
 describe('reajustarRes al girar el dispositivo', () => {
