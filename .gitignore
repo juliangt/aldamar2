@@ -59,3 +59,6 @@ Desktop.ini
 
 # pindonga files
 pindonga/
+
+# Playwright test artifacts
+test-results/
