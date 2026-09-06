@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 vi.mock('phaser', () => {
   class Scene {
@@ -23,6 +23,7 @@ vi.mock('phaser', () => {
 })
 
 import { BootScene } from '../../src/scenes/BootScene.js'
+import * as resolucion from '../../src/core/resolucion.js'
 import { MenuScene } from '../../src/scenes/MenuScene.js'
 import { HeroeScene } from '../../src/scenes/HeroeScene.js'
 import { EpilogoScene } from '../../src/scenes/EpilogoScene.js'
@@ -35,8 +36,58 @@ describe('ScenesUnit Tests', () => {
   })
 
   describe('BootScene', () => {
+    let boot
+    let spyValidarDatos
+    let spySceneStart
+    let spyWarn
+    let originalFonts
+
+    beforeEach(() => {
+      boot = new BootScene()
+      boot.scene = { start: vi.fn() }
+      spyValidarDatos = vi.spyOn(boot, 'validarDatos').mockImplementation(() => {})
+      spySceneStart = vi.spyOn(boot.scene, 'start')
+      spyWarn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      vi.spyOn(resolucion, 'aplicarRes').mockImplementation(() => {})
+
+      originalFonts = globalThis.document?.fonts
+    })
+
+    afterEach(() => {
+      vi.restoreAllMocks()
+      if (globalThis.document) {
+        globalThis.document.fonts = originalFonts
+      }
+    })
+
+    describe('create', () => {
+      it('espera a la fuente y avanza si se carga correctamente (happy path)', async () => {
+        if (!globalThis.document) globalThis.document = {}
+        globalThis.document.fonts = { load: vi.fn().mockResolvedValue([]) }
+
+        await boot.create()
+
+        expect(globalThis.document.fonts.load).toHaveBeenCalledWith('8px "Press Start 2P"', 'ALDAMAR')
+        expect(spyWarn).not.toHaveBeenCalled()
+        expect(spyValidarDatos).toHaveBeenCalled()
+        expect(spySceneStart).toHaveBeenCalledWith('Sello')
+      })
+
+      it('lanza console.warn si la fuente falla pero avanza igual (error path)', async () => {
+        if (!globalThis.document) globalThis.document = {}
+        globalThis.document.fonts = { load: vi.fn().mockRejectedValue(new Error('Font load failed')) }
+
+        await boot.create()
+
+        expect(globalThis.document.fonts.load).toHaveBeenCalledWith('8px "Press Start 2P"', 'ALDAMAR')
+        expect(spyWarn).toHaveBeenCalledWith('[Boot] No se pudo esperar a la fuente pixel; sigo con fallback')
+        expect(spyValidarDatos).toHaveBeenCalled()
+        expect(spySceneStart).toHaveBeenCalledWith('Sello')
+      })
+    })
+
     it('validarDatos confirma las 4 aventuras, 39 lugares, 23 enemigos y 3 dificultades', () => {
-      const boot = new BootScene()
+      spyValidarDatos.mockRestore()
       const spyInfo = vi.spyOn(console, 'info').mockImplementation(() => {})
 
       boot.validarDatos()
