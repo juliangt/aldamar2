@@ -88,23 +88,8 @@ export class WorldScene extends Phaser.Scene {
     cam.once('camerafadeincomplete', () => this.iniciarLugar())
 
     this.teclas = this.input.keyboard.addKeys(
-      'W,A,S,D,UP,DOWN,LEFT,RIGHT,E,SPACE,ENTER,K,J'
+      'W,A,S,D,UP,DOWN,LEFT,RIGHT,E,SPACE,ENTER'
     )
-
-    // Ayudas dev de Fase C (sin combate aún): K daña 5 PV para probar
-    // consumibles/descanso; J mete los 12 ítems para probar inventario/tienda.
-    this.input.keyboard.on('keydown-K', () => {
-      if (this.ui?.modal || this.pausado) return
-      this.ui.toast(`(dev: -5 PV → ${partida.danarDev()})`)
-      this.ui.refrescarHud()
-    })
-    this.input.keyboard.on('keydown-J', () => {
-      if (this.ui?.modal || this.pausado) return
-      for (const id of Object.keys(Datos.aventura(this.aventura).items))
-        partida.inventario.push(id)
-      partida.guardar()
-      this.ui.toast('(dev: inventario de prueba)')
-    })
 
     this.registrarWake()
 
