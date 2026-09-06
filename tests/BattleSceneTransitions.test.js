@@ -143,6 +143,28 @@ describe('BattleScene transitions and safety fixes', () => {
     expect(texto.setVisible).toHaveBeenCalledWith(false)
   })
 
+  it('linea resolves a pending previous line instead of orphaning it (secreto/cuervo hang)', async () => {
+    const bs = new BattleScene()
+    let autoAvance = null
+    bs.time = {
+      delayedCall: vi.fn((_ms, cb) => {
+        autoAvance = cb
+        return { remove: vi.fn() }
+      }),
+    }
+    bs.logTexto = { setText: vi.fn() }
+
+    const p1 = bs.linea('El cuervo planea sobre el combate…')
+    // Antes del fix, esta segunda linea() machacaba logResolver y p1
+    // nunca se resolvía: el flujo del combate quedaba colgado.
+    const p2 = bs.linea('El lobo golpea.')
+    await p1
+
+    autoAvance()
+    await p2
+    expect(bs.logResolver).toBeNull()
+  })
+
   it('flow fallback to acabar("victoria") when an error is thrown', async () => {
     // Setup for bypassing the while loop and causing an error on finalizar
     battle.combate = {
