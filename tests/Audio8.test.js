@@ -26,6 +26,17 @@ describe('Audio8 — Síntesis y gestión sonora', () => {
     getItemSpy.mockRestore()
   })
 
+  it('maneja errores de localStorage al guardar volumen sin fallar', () => {
+    const setItemSpy = vi.spyOn(globalThis.localStorage, 'setItem').mockImplementation(() => {
+      throw new Error('Quota excedida')
+    })
+
+    audio.setVolumen(0.6)
+    expect(audio.volumenMaster).toBe(0.6)
+
+    setItemSpy.mockRestore()
+  })
+
   it('setVolumen ajusta y persiste en localStorage entre 0 y 1', () => {
     audio.setVolumen(0.5)
     expect(audio.volumenMaster).toBe(0.5)
@@ -36,6 +47,20 @@ describe('Audio8 — Síntesis y gestión sonora', () => {
 
     audio.setVolumen(-0.2)
     expect(audio.volumenMaster).toBe(0.0)
+  })
+
+  it('maneja errores de localStorage al guardar mute sin fallar', () => {
+    const setItemSpy = vi.spyOn(globalThis.localStorage, 'setItem').mockImplementation(() => {
+      throw new Error('Quota excedida')
+    })
+
+    audio.setMute(true)
+    expect(audio.mute).toBe(true)
+
+    audio.setMute(false)
+    expect(audio.mute).toBe(false)
+
+    setItemSpy.mockRestore()
   })
 
   it('setMute y toggleMute alternan y persisten el estado de silencio', () => {
