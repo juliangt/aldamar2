@@ -63,7 +63,7 @@ export class HeroeScene extends Phaser.Scene {
   // --------------------------------------------------- Paso 1: Selección de héroe
 
   dibujarSeleccionHeroe() {
-    const { width, height } = VISTA
+    const { width } = VISTA
     const vertical = esVistaVertical()
     // En vertical (270×480) la tarjeta se baja para centrar el contenido.
     const dy = vertical ? 80 : 0
@@ -71,7 +71,22 @@ export class HeroeScene extends Phaser.Scene {
     const total = this.clavesHeroes.length
     const nombre = this.nombreActual(clave, pj)
 
-    // Barra superior
+    const cajaX = width / 2
+
+    const barraSuperior = this._crearBarraSuperior(width)
+    const navegacion = this._crearNavegacionHeroes(width, total)
+    const tarjeta = this._crearTarjetaPersonaje(width, dy, nombre, pj)
+    const botones = this._crearBotonesAccion(cajaX, dy, nombre)
+
+    this.raiz.add([
+      ...barraSuperior,
+      ...navegacion,
+      ...tarjeta,
+      ...botones,
+    ])
+  }
+
+  _crearBarraSuperior(width) {
     const volver = this.add
       .text(12, 12, '◄ MENU', { fontFamily: FUENTE, fontSize: '8px', color: '#909090' })
       .setInteractive({ useHandCursor: true })
@@ -85,7 +100,10 @@ export class HeroeScene extends Phaser.Scene {
       })
       .setOrigin(0.5, 0)
 
-    // Navegación de héroes
+    return [volver, tituloAv]
+  }
+
+  _crearNavegacionHeroes(width, total) {
     const navIzq = this.add
       .text(width / 2 - 90, 28, '◄', { fontFamily: FUENTE, fontSize: '10px', color: '#ffffff' })
       .setOrigin(0.5)
@@ -112,7 +130,10 @@ export class HeroeScene extends Phaser.Scene {
         this.renderizarVista()
       })
 
-    // Tarjeta del personaje (caja central)
+    return [navIzq, navIndice, navDer]
+  }
+
+  _crearTarjetaPersonaje(width, dy, nombre, pj) {
     const cajaW = width - 36
     const cajaH = 160
     const cajaX = width / 2
@@ -122,7 +143,6 @@ export class HeroeScene extends Phaser.Scene {
       .rectangle(cajaX, cajaY, cajaW, cajaH, 0x111116, 0.95)
       .setStrokeStyle(1, 0x444455, 0.8)
 
-    // Nombre y título
     const txtNombre = this.add
       .text(cajaX, 48 + dy, nombre, { fontFamily: FUENTE, fontSize: '11px', color: '#ffffff' })
       .setOrigin(0.5, 0)
@@ -135,7 +155,6 @@ export class HeroeScene extends Phaser.Scene {
       })
       .setOrigin(0.5, 0)
 
-    // Estadísticas
     const itemsNombres = (pj.inventario || [])
       .map((id) => Datos.item(this.avId, id)?.nombre || id)
       .join(', ') || 'ninguno'
@@ -156,7 +175,6 @@ export class HeroeScene extends Phaser.Scene {
       )
       .setOrigin(0.5, 0)
 
-    // Presentación / rasgo
     const txtPres = this.add
       .text(cajaX, 102 + dy, pj.presentacion || '', {
         fontFamily: FUENTE,
@@ -168,7 +186,10 @@ export class HeroeScene extends Phaser.Scene {
       })
       .setOrigin(0.5, 0)
 
-    // Botones de acción inferiores dentro de la tarjeta
+    return [fondoCaja, txtNombre, txtTitulo, txtStats, txtPres]
+  }
+
+  _crearBotonesAccion(cajaX, dy, nombre) {
     const btnNombre = this.add
       .text(cajaX - 70, 184 + dy, '✎ CAMBIAR NOMBRE', {
         fontFamily: FUENTE,
@@ -196,20 +217,7 @@ export class HeroeScene extends Phaser.Scene {
         this.renderizarVista()
       })
 
-    this.raiz.add([
-      volver,
-      tituloAv,
-      navIzq,
-      navIndice,
-      navDer,
-      fondoCaja,
-      txtNombre,
-      txtTitulo,
-      txtStats,
-      txtPres,
-      btnNombre,
-      btnElegir,
-    ])
+    return [btnNombre, btnElegir]
   }
 
   // --------------------------------------------------- Paso 2: Teclado táctil v1

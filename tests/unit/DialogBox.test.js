@@ -165,4 +165,55 @@ describe('DialogBox Unit Tests', () => {
     expect(dialog.altoCaja).toBeGreaterThan(0)
     expect(dialog.paginas.length).toBeGreaterThan(0)
   })
+
+  it('aplicarGeometria() define correctamente las dimensiones de la caja de diálogo y componentes', async () => {
+    const { VISTA } = await import('../../src/core/resolucion.js')
+    dialog.aplicarGeometria()
+
+    const anchoEsperado = VISTA.width - 12
+    const altoEsperado = 84
+
+    expect(dialog.anchoCaja).toBe(anchoEsperado)
+    expect(dialog.altoCaja).toBe(altoEsperado)
+
+    // El fondo (caja negra) debe medir y posicionarse adecuadamente
+    expect(dialog.fondo.setSize).toHaveBeenCalledWith(anchoEsperado, altoEsperado)
+    expect(dialog.fondo.setPosition).toHaveBeenCalledWith(
+      dialog.x + anchoEsperado / 2,
+      dialog.y + altoEsperado / 2
+    )
+
+    // El texto y el indicador deben estar dentro de los márgenes
+    expect(dialog.texto.setPosition).toHaveBeenCalledWith(dialog.x + 8, dialog.y + 8)
+    expect(dialog.indicador.setPosition).toHaveBeenCalledWith(
+      dialog.x + anchoEsperado - 12,
+      dialog.y + altoEsperado - 12
+    )
+
+    // La zona debe cubrir toda la pantalla
+    expect(dialog.zona.setSize).toHaveBeenCalledWith(VISTA.width, VISTA.height)
+    expect(dialog.zona.setPosition).toHaveBeenCalledWith(VISTA.width / 2, VISTA.height / 2)
+  })
+
+  it('relayout() re-posiciona los botones de opciones durante una pregunta', async () => {
+    const { VISTA } = await import('../../src/core/resolucion.js')
+    dialog.pregunta(['Si', 'No'])
+
+    // Simulamos un cambio de VISTA manipulando dialog.x y dialog.anchoCaja directamente
+    // como lo haría aplicarGeometria() si VISTA cambiara
+    dialog.relayout()
+
+    // Los botones (en this.botones) deben haber cambiado de posición
+    const opciones = ['Si', 'No']
+    const n = opciones.length
+
+    dialog.botones.forEach((grupo, i) => {
+      const bx = dialog.x + 24 + i * (dialog.anchoCaja / n)
+      const by = dialog.y + dialog.altoCaja / 2
+
+      grupo.forEach(obj => {
+        expect(obj.setPosition).toHaveBeenCalledWith(bx, by)
+      })
+    })
+  })
 })

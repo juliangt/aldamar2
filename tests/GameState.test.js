@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { GameState } from '../src/core/GameState.js'
 
 function partidaNueva(overrides = {}) {
@@ -42,8 +42,15 @@ describe('GameState', () => {
 
   it('restaurar devuelve null sin save o con JSON roto', () => {
     expect(GameState.restaurar('brasa_vegaverde')).toBeNull()
+
+    // Test implicitly with a broken string in localStorage
     localStorage.setItem('aldamar:save:sal_y_ceniza', '{no json')
     expect(GameState.restaurar('sal_y_ceniza')).toBeNull()
+
+    // Test explicitly by mocking localStorage.getItem to return malformed JSON
+    const getItemSpy = vi.spyOn(localStorage, 'getItem').mockReturnValue('{malformed: json,}')
+    expect(GameState.restaurar('otra_aventura')).toBeNull()
+    getItemSpy.mockRestore()
   })
 
   it('borrar elimina el save', () => {
