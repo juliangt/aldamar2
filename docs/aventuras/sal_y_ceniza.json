@@ -204,6 +204,7 @@
   "lugares": {
     "rioclaro": {
       "nombre": "la Aldea de Ríoclaro",
+      "nombre_corto": "Ríoclaro",
       "descripcion": "Casitas de piedra junto al vado y la posadera de Dorotea, donde el\nestofado es ley y el aguardiente, remedio. Desde la marea de ceniza,\nnadie baja al sur: el camino de las marismas se ve vacío y se oye\npeor.",
       "salidas": {
         "sur": "vado",
@@ -223,6 +224,7 @@
     },
     "vado": {
       "nombre": "el Vado de las Marismas",
+      "nombre_corto": "Vado",
       "descripcion": "El Río Plata se abre en cañas y avisa con una loma de arena de que\nel mar está cerca. El agua tira hacia el sur con insistencia nueva,\ncomo si la llamaran desde abajo.",
       "salidas": {
         "norte": "rioclaro",
@@ -244,6 +246,7 @@
     },
     "calzada": {
       "nombre": "la Calzada Sumergida",
+      "nombre_corto": "Calzada",
       "descripcion": "Piedras romanas a ras de agua, la única senda firme entre la marisma.\nA oriente, el faro duerme con su linterna apagada; al sur, las terrazas\nde sal brillan con un brillo que no es de sal.",
       "salidas": {
         "norte": "vado",
@@ -267,6 +270,7 @@
     },
     "faro": {
       "nombre": "el Faro Dormido",
+      "nombre_corto": "Faro",
       "descripcion": "Un dedo de piedra y sal con la linterna fría. Iseo el Farero duerme\ny delira contra la puerta, con el farol de sal en el regazo como se\nsostiene a un hijo enfermo.",
       "salidas": {
         "oeste": "calzada",
@@ -286,6 +290,7 @@
     },
     "esteros": {
       "nombre": "los Caños Grises",
+      "nombre_corto": "Caños",
       "descripcion": "Canales que se cruzan como hilos en un telar. La espuma deja una\nborra gris en las piedras y las gaviotas discuten en un idioma que\nno les enseñaron sus madres. Al este, las terrazas; al sur, el cauce\nseco.",
       "salidas": {
         "norte": "calzada",
@@ -309,6 +314,7 @@
     },
     "cauce": {
       "nombre": "el Cauce Seco",
+      "nombre_corto": "Cauce",
       "descripcion": "Un río viejo que no recuerda correr. En el lodo brillan cosas que\nla marea trajo y no quiso repetir: conchas de nadie, un peine de\nSirena y, arriba en una poza, una perla gris que late con la marea.",
       "salidas": {
         "norte": "esteros",
@@ -330,6 +336,7 @@
     },
     "salinas": {
       "nombre": "las Terrazas de Sal",
+      "nombre_corto": "Salinas",
       "descripcion": "Tablas de evaporar hasta el horizonte, todas con la misma grieta\ngris que avanza como una sombra de dentro. Las salmueras susurran\nnombres, y de vez en cuando uno tuyo.",
       "salidas": {
         "oeste": "esteros",
@@ -351,6 +358,7 @@
     },
     "casa_sal": {
       "nombre": "la Casa de la Sal",
+      "nombre_corto": "Casa Sal",
       "descripcion": "Bodega de tablones oscuros donde los salineros guardan lo que la\nsal no come: aperos, redes y una mesa con lo puesto para vender.\nAlguien grande moja en la puerta; no es agua lo que gotea.",
       "salidas": {
         "oeste": "salinas",
@@ -374,6 +382,7 @@
     },
     "salina_vieja": {
       "nombre": "la Salina Vieja",
+      "nombre_corto": "Salina",
       "descripcion": "La primera terraza, la más honda, donde la sal crió corazón. En el\ncentro, una ascua del tamaño de una cabeza duerme en salmuera viva,\ny a su alrededor, tejida con espuma y sigilo, la Viuda tensa su\ntelar de hilos grises.",
       "salidas": {
         "oeste": "casa_sal",

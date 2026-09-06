@@ -312,6 +312,7 @@
   "lugares": {
     "vegaverde": {
       "nombre": "Vegaverde",
+      "nombre_corto": "Vegaverde",
       "descripcion": "La casa-redil llena de convocados: falros, sylvos, goran y gente de\ntodos los caminos, y hogazas de Oldo para todos. Al este, el camino\ndel molino; muy lejos, al este del este, la Aguja se ve en los días\nclaros, y estos días no están claros.",
       "salidas": {
         "este": "molino",
@@ -334,6 +335,7 @@
     },
     "molino": {
       "nombre": "el Camino del Molino",
+      "nombre_corto": "Molino",
       "descripcion": "El viejo molino chirría ensayando para la guerra y las palomas han\ndesertado. Alguien ha clavado en el camino un espantapájaros con\ncapa de capitán: el viento lo mueve más de lo que el viento suele.",
       "salidas": {
         "oeste": "vegaverde",
@@ -357,6 +359,7 @@
     },
     "encrucijada": {
       "nombre": "la Encrucijada",
+      "nombre_corto": "Cruce",
       "descripcion": "El cruce de todos los caminos que van al este: piedras de mil pies\ny postes con flechas pintadas hacia la Aguja. Al norte, Ríoclaro; al\nsur, el Bosque Umbrío.",
       "salidas": {
         "oeste": "molino",
@@ -380,6 +383,7 @@
     },
     "rioclaro": {
       "nombre": "la Aldea de Ríoclaro",
+      "nombre_corto": "Ríoclaro",
       "descripcion": "La posadera de Dorotea funciona de cuartel, mercado y consejo de\n Guerra por turnos. Maruxa sirve mesas con un rastrillo al lado de la\npizarra. Hacia el este, la Ciudad Dorada; el estofado, por la casa.",
       "salidas": {
         "sur": "encrucijada",
@@ -402,6 +406,7 @@
     },
     "valoria": {
       "nombre": "la Ciudad Dorada de Valoria",
+      "nombre_corto": "Valoria",
       "descripcion": "Torres blancas con andamios de guerra y el estandarte del Sol\nLevantado descolgado para que le vuelvan a pasar el hilo. En la gran\nsala, el heraldo del consejo reparte juramentos y paños. Al norte,\nlas Profundidades de Barrok.",
       "salidas": {
         "oeste": "rioclaro",
@@ -423,6 +428,7 @@
     },
     "bosque": {
       "nombre": "el Bosque Umbrío",
+      "nombre_corto": "Bosque",
       "descripcion": "Los faroles de musgo vuelven a encenderse de uno en uno, despacio,\ncomo quien se despierta de mal sueño. Flechas antiguas señalan el\ncamino al puente, al este, y en las ramas altas faltan tres faroles\nque nadie reemplaza.",
       "salidas": {
         "norte": "encrucijada",
@@ -446,6 +452,7 @@
     },
     "puente": {
       "nombre": "el Puente de Piedra",
+      "nombre_corto": "Puente",
       "descripcion": "El puente que ya cruzó un Corazón camina hacia las Ciénagas, al\neste, con la solemnidad de los que saben de idas. Un espectro de\nceniza ronda la barandilla sur como un peón que no le pagan. Al\nnorte, la Torre de Belthar.",
       "salidas": {
         "oeste": "bosque",
@@ -469,6 +476,7 @@
     },
     "refugio": {
       "nombre": "la Torre de Belthar",
+      "nombre_corto": "Torre",
       "descripcion": "Un dedo de piedra sobre el islote seco, con la fuente de agua clara\nsonando más vieja que nunca y mapas nuevos de una Aguja vieja. Belthar\nelige convocados desde el umbral, como quien elige semillas.",
       "salidas": {
         "sur": "puente",
@@ -488,6 +496,7 @@
     },
     "barrok": {
       "nombre": "las Profundidades de Barrok",
+      "nombre_corto": "Barrok",
       "descripcion": "Galerías azules de vuelta al trabajo: fraguas abiertas, picos que\nsí son picos y Torkan Hachagris firmando acero. La fragua templa\nhuesos además de hojas. Al este, las Ciénagas del Olvido.",
       "salidas": {
         "sur": "valoria",
@@ -511,6 +520,7 @@
     },
     "cienagas": {
       "nombre": "las Ciénagas del Olvido",
+      "nombre_corto": "Ciénagas",
       "descripcion": "El barro sigue guardando caras de los que dudaron demasiado, y ahora\nrecuerda otras: capitán, custodios, el humo de un amuleto que ardió.\nAl este, los Yermos; el aire de ceniza se nota desde aquí.",
       "salidas": {
         "oeste": "puente",
@@ -534,6 +544,7 @@
     },
     "yerma": {
       "nombre": "los Yermos de Ceniza",
+      "nombre_corto": "Yermos",
       "descripcion": "La tierra acaba y empieza el reino del polvo, otra vez. Grietas rojas\npulsan al compás de un canto que ya no es tan lejos, y al este la\nAguja Pálida se alza alta y despierta.",
       "salidas": {
         "oeste": "cienagas",
@@ -556,6 +567,7 @@
     },
     "aguja_pies": {
       "nombre": "la Escalera de la Aguja",
+      "nombre_corto": "Escalera",
       "descripcion": "La atalaya se levanta de una base de piedra que respira despacio.\nLa escalera sube enroscándose hacia la cumbre, y el primer peldaño\nsuena a bronce, como si esperara una campanilla.",
       "salidas": {
         "oeste": "yerma",
@@ -577,6 +589,7 @@
     },
     "aguja_cima": {
       "nombre": "la Cumbre de la Aguja",
+      "nombre_corto": "Cumbre",
       "descripcion": "La cima abierta al cielo de ceniza, con el trono vacío donde un día\nhubo un amuleto y el humo tejiéndose en el aire como una mano que\nrecuerda. Tres faenas custodian la cima: una Voz, un Capitán rehecho\ny lo que el humo aprendió de Morvath.",
       "salidas": {
         "oeste": "aguja_pies",

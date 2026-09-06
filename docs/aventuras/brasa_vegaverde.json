@@ -97,6 +97,7 @@
   "lugares": {
     "vegaverde": {
       "nombre": "Vegaverde",
+      "nombre_corto": "Vegaverde",
       "descripcion": "La casa-redil de Oldo, las tolvaneras y los huertos que esta mañana\nhuelen a pan y a miedo. Al este, el ejido; al fondo, el viejo tejo del\nejido arde sin humo negro, como una vela que no se decide a acabarse.",
       "salidas": {
         "este": "ejido",
@@ -119,6 +120,7 @@
     },
     "ejido": {
       "nombre": "el Ejido",
+      "nombre_corto": "Ejido",
       "descripcion": "Hileras de puerros y cebolletas; las primeras marchitas de gris, como\nsi el invierno hubiera pasado por encima sin pisar. El aire sabe a\nhumo viejo. Al este brilla el tejo; al sur se oye el lavadero.",
       "salidas": {
         "oeste": "vegaverde",
@@ -142,6 +144,7 @@
     },
     "tejera": {
       "nombre": "la Tejera Vieja",
+      "nombre_corto": "Tejera",
       "descripcion": "El tejo más viejo de Vegaverde, hueco de siglos, arde por dentro sin\nconsumirse. En la hendidura late una brasa del tamaño de un puño, y\nalrededor, plantado donde no estaba ayer, el espantapájaros del ejido\nmira con ojos de ascua.",
       "salidas": {
         "oeste": "ejido",
@@ -161,6 +164,7 @@
     },
     "lavadero": {
       "nombre": "el Lavadero del Arroyo",
+      "nombre_corto": "Lavadero",
       "descripcion": "Pilas de cobre bruñido y agua limpia que canta sobre la losa. Perpetua\nfrota como hace cien años y echa la espuma al arroyo sin mirar. Al oeste,\ntras la dehesa, zumba la colmena.",
       "salidas": {
         "norte": "ejido",
@@ -184,6 +188,7 @@
     },
     "colmenar": {
       "nombre": "la Colmena de la Dehesa",
+      "nombre_corto": "Colmena",
       "descripcion": "Cajones de sabina a la sombra del arroyo y un zumbido grave que suena\na grupo de gente conversando. Las abejas vuelan derecho, como flechas\nque saben a qué vuelven, y no dejan de mirar hacia la tejera.",
       "salidas": {
         "este": "lavadero",
