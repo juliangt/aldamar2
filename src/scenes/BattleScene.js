@@ -17,7 +17,7 @@ import { audio8 } from '../core/Audio8.js'
 
 const FUENTE = '"Press Start 2P", monospace'
 const PALETA_ENEMIGO = { lobo: '#5a5a6a', espectro: '#8a9ab0', trasgo: '#7a8a4a', lobero: '#6a5a4a', capitan: '#9a6a5a', custodio: '#b0c0c8' }
-const MS_LOG = 1300 // auto-avance del log
+const MS_LOG = 750 // auto-avance del log (base; crece con la longitud)
 
 export class BattleScene extends Phaser.Scene {
   constructor() {
@@ -96,6 +96,8 @@ export class BattleScene extends Phaser.Scene {
     // Transitorios: se vuelven a crear al vuelo si hacen falta.
     this.cursorObjetivo?.destroy()
     this.cursorObjetivo = null
+    this.panelFinalGrupo?.forEach((o) => o.destroy())
+    this.panelFinalGrupo = null
     if (this.selectorObjeto) {
       const resolver = this.selectorObjetoResolver
       this.selectorObjeto.destroy()
@@ -141,8 +143,41 @@ export class BattleScene extends Phaser.Scene {
       .setDepth(3100)
       .setInteractive({ useHandCursor: true })
 
-    this.btnSecreto.on('pointerdown', () => {
-      this.linea(sec.texto_combate)
+    this.btnSecreto.on('pointerdown', () => this.mostrarSecreto(sec.texto_combate))
+  }
+
+  // El texto del secreto va en un recuadro propio: nunca pasa por linea()
+  // para no pisar una línea en curso del flujo de combate.
+  mostrarSecreto(texto) {
+    this.avisoSecreto?.destroy()
+    const { width } = VISTA
+    const fondo = this.add
+      .rectangle(width / 2, 36, width - 72, 40, 0x000000, 0.85)
+      .setStrokeStyle(1, 0x8a8a9a, 0.8)
+      .setDepth(3300)
+      .setInteractive({ useHandCursor: true })
+    const txt = this.add
+      .text(width / 2, 36, Texto.tpl(texto), {
+        fontFamily: FUENTE,
+        fontSize: '7px',
+        color: '#c8c8d8',
+        wordWrap: { width: width - 90 },
+        align: 'center',
+      })
+      .setOrigin(0.5)
+      .setDepth(3301)
+    const aviso = {
+      destroy: () => {
+        fondo.destroy()
+        txt.destroy()
+      },
+    }
+    this.avisoSecreto = aviso
+    fondo.on('pointerdown', () => {
+      if (this.avisoSecreto === aviso) this.avisoSecreto.destroy()
+    })
+    this.time.delayedCall(3600, () => {
+      if (this.avisoSecreto === aviso) this.avisoSecreto.destroy()
     })
   }
 
@@ -252,7 +287,8 @@ export class BattleScene extends Phaser.Scene {
       if (!actor._barra) continue
       actor._barra.setText(`${Math.max(0, actor.vida)}/${actor.vidaMax}`)
       actor._nombre.setText(actor.nombre)
-      if (actor.vida <= 0) actor._sprite.setTintFill(0x3a3a3a).setAlpha(0.6)
+      if (actor.vida <= 0)
+        actor._sprite.setTint(0x3a3a3a).setTintMode(Phaser.TintModes.FILL).setAlpha(0.6)
       else if (actor._sprite.tintTopLeft !== 0xffffff) actor._sprite.clearTint().setAlpha(1)
     }
   }
@@ -288,15 +324,18 @@ export class BattleScene extends Phaser.Scene {
     if (this.logZona.input?.hitArea?.setSize) this.logZona.input.hitArea.setSize(width, 60)
   }
 
-  // Muestra una línea; resuelve sola a los MS_LOG o antes con tap.
+  // Muestra una línea; resuelve sola al cabo de un rato o antes con tap.
   linea(texto, ctx = {}) {
     const final = Texto.tpl(texto, ctx)
     this.logTexto.setText(final)
+    // Si había una línea pendiente, resolverla antes de reemplazarla: si no,
+    // su promesa quedaría huérfana y el flujo se colgaría para siempre.
+    this.acelerarLog()
     return new Promise((resolve) => {
       this.logResolver = resolve
       this.tiempoLog?.remove()
       this.tiempoLog = this.time.delayedCall(
-        Math.min(4000, MS_LOG + final.length * 18),
+        Math.min(2600, MS_LOG + final.length * 10),
         () => {
           this.logResolver = null
           resolve()
@@ -690,7 +729,7 @@ export class BattleScene extends Phaser.Scene {
   fxCambioFase(enemigo) {
     const s = enemigo._sprite
     if (!s) return
-    s.setTintFill(0xffffff)
+    s.setTint(0xffffff).setTintMode(Phaser.TintModes.FILL)
     this.time.delayedCall(140, () => s.clearTint())
     this.cameras.main.flash(160, 255, 255, 255)
   }
@@ -702,30 +741,88 @@ export class BattleScene extends Phaser.Scene {
     if (c.resultado === 'victoria') {
       const res = c.aplicarResultado()
       audio8.sfx('victoria')
-      await this.linea('Has vencido.')
-      if (res?.xp) await this.linea(`Ganas ${res.xp} de experiencia.`)
+      this.cameras?.main?.flash?.(200, 255, 255, 255)
+      const lineas = []
+      if (res?.xp) lineas.push(`Ganas ${res.xp} de experiencia.`)
       for (let i = 0; i < (res?.subidasNivel || 0); i++) {
         audio8.sfx('nivel')
-        await this.linea('¡Subes de nivel! +5 PV maximos' + (partida.nivel % 2 === 0 ? ' y +1 ataque.' : '.'))
+        lineas.push('¡Subes de nivel! +5 PV maximos' + (partida.nivel % 2 === 0 ? ' y +1 ataque.' : '.'))
       }
+      await this.panelFinal('¡VICTORIA!', lineas, '#e0c04a')
       await this.acabar('victoria')
     } else if (c.resultado === 'huida') {
       c.aplicarResultado()
+      await this.panelFinal('ESCAPAS', ['Retrocedes hasta perder el ruido del combate.'], '#9a9aa8')
       await this.acabar('huida')
     } else if (c.resultado === 'derrota') {
       c.aplicarResultado()
       audio8.sfx('derrota')
-      await this.linea('La vista se llena de ceniza…')
+      await this.panelFinal('DERROTA', ['La vista se llena de ceniza…'], '#e05050')
       await this.acabar('derrota')
     } else if (c.resultado === 'caida') {
       c.aplicarResultado()
       audio8.sfx('derrota')
-      await this.linea('La grieta se abre del todo.')
+      await this.panelFinal('LA GRIETA SE ABRE', ['La luz se parte en dos.'], '#b07a9a')
       await this.acabar('caida')
     } else {
       c.aplicarResultado?.()
       await this.acabar(c.resultado || 'victoria')
     }
+  }
+
+  // Panel de cierre de combate: título grande + líneas de resultado. Avanza
+  // con tap en cualquier parte (o solo tras un tiempo) para que el final se
+  // lea como un cierre y no como una línea de log cualquiera.
+  async panelFinal(titulo, lineas, color) {
+    if (!this.add) return
+    const { width, height } = VISTA
+    const alto = 58 + lineas.length * 12
+    const cy = height / 2 - 18
+    const colorNum = Phaser.Display.Color.HexStringToColor(color).color
+    const velo = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.45).setDepth(3300)
+    const caja = this.add
+      .rectangle(width / 2, cy, width - 56, alto, 0x000000, 0.92)
+      .setStrokeStyle(2, colorNum, 1)
+      .setDepth(3301)
+    const txt = this.add
+      .text(width / 2, cy - alto / 2 + 16, titulo, { fontFamily: FUENTE, fontSize: '14px', color })
+      .setOrigin(0.5)
+      .setDepth(3302)
+    const detalle = this.add
+      .text(width / 2, cy + 6, lineas.join('\n'), {
+        fontFamily: FUENTE,
+        fontSize: '7px',
+        color: '#e8e8e8',
+        align: 'center',
+        lineSpacing: 4,
+        wordWrap: { width: width - 80 },
+      })
+      .setOrigin(0.5)
+      .setDepth(3302)
+    const hint = this.add
+      .text(width / 2, cy + alto / 2 - 9, 'toca para continuar', { fontFamily: FUENTE, fontSize: '6px', color: '#888899' })
+      .setOrigin(0.5)
+      .setDepth(3302)
+    const zona = this.add.zone(width / 2, height / 2, width, height).setInteractive().setDepth(3399)
+    this.tweens?.add({ targets: txt, scale: { from: 1.6, to: 1 }, alpha: { from: 0, to: 1 }, duration: 220, ease: 'Back.out' })
+    this.tweens?.add({ targets: hint, alpha: 0.3, duration: 480, yoyo: true, repeat: -1 })
+
+    this.panelFinalGrupo = [velo, caja, txt, detalle, hint, zona]
+    const ms = lineas.length ? 3400 : 2200
+    await new Promise((resolve) => {
+      let fired = false
+      const done = () => {
+        if (!fired) {
+          fired = true
+          resolve()
+        }
+      }
+      zona.once('pointerdown', done)
+      this.time.delayedCall(ms, done)
+      setTimeout(done, ms + 100)
+    })
+    this.panelFinalGrupo?.forEach((o) => o.destroy())
+    this.panelFinalGrupo = null
   }
 
   async acabar(resultado) {
@@ -738,8 +835,8 @@ export class BattleScene extends Phaser.Scene {
             r()
           }
         }
-        this.time.delayedCall(600, done)
-        setTimeout(done, 650)
+        this.time.delayedCall(300, done)
+        setTimeout(done, 350)
       })
 
       this.cameras.main.fadeOut(300, 0, 0, 0)
