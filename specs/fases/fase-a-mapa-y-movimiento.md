@@ -38,6 +38,15 @@ Reglas: los `id` de objetos deben existir en los datos del lugar (validar en
 carga y avisar por consola si falta/sobra). Las capas `npcs`…`eventos` pueden
 estar vacías en esta fase en los mapas piloto (salvo `salidas`).
 
+Carteles de destino (automáticos): cada salida genera su cartel sin pintar
+nada en Tiled. Con 3+ salidas (bifurcación) se dibuja un poste central con
+una tabla por camino (orden N→O→E→S, punta de flecha hacia el lado de la
+salida); con menos, un cartel junto a cada borde. La etiqueta usa
+`lugar.nombre_corto` de los JSON de aventura (≤ 9 caracteres, con fallback
+que recorta el `nombre`), y los destinos con `requiere` sin cumplir se
+muestran con madera apagada, texto gris y una ✕ (se recalcula al entrar en
+cada lugar). Lógica en `src/core/Carteles.js` + `WorldScene.crearCarteles`.
+
 ## Tareas
 
 - [ ] Descargar Kenney Tiny Dungeon; generar el PNG de tileset único y el

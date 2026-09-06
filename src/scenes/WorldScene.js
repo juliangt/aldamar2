@@ -10,6 +10,7 @@ import ValidadorMapa from '../core/ValidadorMapa.js'
 import { aplicarRes } from '../core/resolucion.js'
 import { partida } from '../core/partida.js'
 import { extraerReclutar, extraerComprar } from '../core/Texto.js'
+import { nombreCorto, posicionCartel, posicionPoste, ordenarTablas, flechaDe } from '../core/Carteles.js'
 import heroePng from '../assets/heroe.png'
 import { crearTexturaHeroe, crearTexturaEnemigo, crearTexturaNpc } from '../core/Sprites.js'
 import { audio8, obtenerBioma } from '../core/Audio8.js'
@@ -65,7 +66,9 @@ export class WorldScene extends Phaser.Scene {
 
     this.crearJugador(mapa)
     this.crearTexturasFx()
+    this.crearTexturasCarteles()
     this.crearSalidas(mapa)
+    this.crearCarteles(mapa)
     this.crearNpcs(mapa, lugar)
     this.crearPickups(mapa, lugar)
     this.crearEnemigos(mapa, lugar)
@@ -181,10 +184,19 @@ export class WorldScene extends Phaser.Scene {
 
   crearSalidas(mapa) {
     this.salidas = []
+    this.datosSalidas = []
     const capa = mapa.getObjectLayer('salidas')
     if (!capa) return
     for (const o of capa.objects) {
       const props = this.leerProps(o)
+      this.datosSalidas.push({
+        x: o.x,
+        y: o.y,
+        width: o.width,
+        height: o.height,
+        dir: props.dir,
+        props,
+      })
       const rect = this.add.rectangle(
         o.x + o.width / 2,
         o.y + o.height / 2,
@@ -234,6 +246,163 @@ export class WorldScene extends Phaser.Scene {
     this.cameras.main.once('camerafadeoutcomplete', () =>
       this.scene.restart({ aventura: this.aventura, lugar: hacia, entrada: partida.entrada })
     )
+  }
+
+  // ------------------------------------------------------ carteles de destino
+
+  // Carteles con el destino de cada salida: en bifurcaciones (3+) un poste
+  // central con una tabla por camino; si no, un cartel junto a cada borde.
+  // Decorativos (sin cuerpo físico), como los marcadores de eventos.
+  crearCarteles(mapa) {
+    const salidas = (this.datosSalidas || []).filter((s) => s.props.hacia)
+    if (!salidas.length) return
+    const mapaPx = { width: mapa.widthInPixels, height: mapa.heightInPixels }
+    if (salidas.length >= 3) {
+      const esLibre = (x, y) => {
+        const tile = this.capaObstaculos.getTileAtWorldXY(x, y)
+        return !tile || !tile.properties?.colision
+      }
+      this.crearPosteBifurcacion(salidas, mapaPx, esLibre)
+    } else {
+      for (const s of salidas) this.crearCartelSimple(s, mapaPx)
+    }
+  }
+
+  crearCartelSimple(s, mapaPx) {
+    const { x, y } = posicionCartel(s, mapaPx)
+    const flecha = flechaDe(s.dir)
+    this.add.image(x, y, 'cartel:poste').setOrigin(0.5, 1).setDepth(y)
+    const dx = flecha === 'izquierda' ? -6 : flecha === 'derecha' ? 6 : 0
+    this.pintarTabla(x + dx, y - 12, flecha, s.props.hacia, y)
+  }
+
+  crearPosteBifurcacion(salidas, mapaPx, esLibre) {
+    const filas = ordenarTablas(salidas)
+    const n = filas.length
+    const alto = 14 * n + 8
+    const clave = this.texturaCanvas(`cartel:poste:${n}`, 8, alto, (g) =>
+      this.dibujarPosteCartel(g, alto)
+    )
+    const { x, y } = posicionPoste(mapaPx, esLibre)
+    this.add.image(x, y, clave).setOrigin(0.5, 1).setDepth(y)
+    filas.forEach((s, i) => {
+      const flecha = flechaDe(s.dir)
+      const dx = flecha === 'izquierda' ? -10 : flecha === 'derecha' ? 10 : 0
+      this.pintarTabla(x + dx, y - alto + 10 + i * 14, flecha, s.props.hacia, y)
+    })
+  }
+
+  // Tabla con el nombre corto del destino; el candado (✕ gris) y el color
+  // apagado avisan de puertas con `requiere` aún sin cumplir.
+  pintarTabla(x, y, flecha, hacia, prof) {
+    const destino = Datos.lugar(this.aventura, hacia)
+    const cerrada = this.salidaBloqueada(destino)
+    const forma = flecha === 'arriba' || flecha === 'abajo' ? 'plana' : flecha
+    const tex = `cartel:tabla:${forma}${cerrada ? ':cerrada' : ''}`
+    this.add.image(x, y, tex).setDepth(prof)
+    // Los triángulos de las tablas planas (N/S) se desplazan a un lado para
+    // no perderse contra la columna del poste, del mismo color.
+    if (flecha === 'arriba' || flecha === 'abajo')
+      this.add
+        .image(x - 12, y + (flecha === 'arriba' ? -8 : 8), `cartel:tri:${flecha}`)
+        .setDepth(prof)
+    if (cerrada)
+      this.add
+        .image(x + (forma === 'plana' ? 12 : 0), y + (flecha === 'arriba' ? 8 : -8), 'cartel:cruz')
+        .setDepth(prof)
+    // El texto se centra sobre el cuerpo del listón, no sobre la textura
+    // completa (la punta desplaza el centro óptico).
+    const dxTexto = forma === 'derecha' ? -4 : forma === 'izquierda' ? 4 : 0
+    this.add
+      .text(x + dxTexto, y + 1, nombreCorto(destino) || hacia, {
+        fontFamily: FUENTE,
+        fontSize: '6px',
+        color: cerrada ? '#8a8a8a' : '#e8d8a8',
+      })
+      .setOrigin(0.5)
+      .setDepth(prof + 1)
+  }
+
+  salidaBloqueada(destino) {
+    if (!destino?.requiere) return false
+    return (
+      !partida.inventario.includes(destino.requiere) && !partida.tieneFlag(destino.requiere)
+    )
+  }
+
+  crearTexturasCarteles() {
+    this.texturaCanvas('cartel:poste', 8, 16, (g) => this.dibujarPosteCartel(g, 16))
+    for (const forma of ['izquierda', 'derecha', 'plana']) {
+      const ancho = forma === 'plana' ? 58 : 66
+      this.texturaCanvas(`cartel:tabla:${forma}`, ancho, 12, (g) =>
+        this.dibujarTablaCartel(g, forma, false)
+      )
+      this.texturaCanvas(`cartel:tabla:${forma}:cerrada`, ancho, 12, (g) =>
+        this.dibujarTablaCartel(g, forma, true)
+      )
+    }
+    this.texturaCanvas('cartel:tri:arriba', 7, 5, (g) => {
+      g.fillStyle = '#3a2410'
+      g.fillRect(3, 0, 1, 1)
+      g.fillRect(2, 1, 3, 1)
+      g.fillRect(1, 2, 5, 1)
+      g.fillRect(0, 3, 7, 2)
+    })
+    this.texturaCanvas('cartel:tri:abajo', 7, 5, (g) => {
+      g.fillStyle = '#3a2410'
+      g.fillRect(0, 0, 7, 2)
+      g.fillRect(1, 2, 5, 1)
+      g.fillRect(2, 3, 3, 1)
+      g.fillRect(3, 4, 1, 1)
+    })
+    this.texturaCanvas('cartel:cruz', 7, 7, (g) => {
+      g.fillStyle = '#9a9a9a'
+      for (let i = 0; i < 7; i++) {
+        g.fillRect(i, i, 1, 1)
+        g.fillRect(6 - i, i, 1, 1)
+      }
+    })
+  }
+
+  dibujarPosteCartel(g, alto) {
+    g.fillStyle = '#3a2410'
+    g.fillRect(0, 0, 8, alto)
+    g.fillStyle = '#8a5a2a'
+    g.fillRect(1, 1, 6, alto - 2)
+    g.fillStyle = '#b07840'
+    g.fillRect(2, 1, 2, alto - 2)
+    g.fillStyle = '#3a2410'
+    g.fillRect(1, 1, 6, 1)
+    g.fillRect(1, alto - 3, 6, 1)
+  }
+
+  // Listón de madera con punta lateral escalonada; la variante cerrada usa
+  // madera apagada. `izquierda` reutiliza el dibujo espejado.
+  dibujarTablaCartel(g, forma, cerrada) {
+    if (forma === 'izquierda') {
+      g.translate(66, 0)
+      g.scale(-1, 1)
+    }
+    const punta = forma !== 'plana'
+    g.fillStyle = '#3a2410'
+    g.fillRect(0, 0, 58, 12)
+    if (punta) {
+      g.fillRect(58, 1, 3, 10)
+      g.fillRect(61, 2, 3, 8)
+      g.fillRect(64, 3, 2, 6)
+    }
+    g.fillStyle = cerrada ? '#6a5646' : '#b07840'
+    g.fillRect(1, 1, 56, 10)
+    if (punta) {
+      g.fillRect(58, 2, 2, 8)
+      g.fillRect(61, 3, 2, 6)
+      g.fillRect(64, 4, 1, 4)
+    }
+    g.fillStyle = cerrada ? '#7c6a58' : '#c89058'
+    g.fillRect(1, 1, 56, 2)
+    g.fillStyle = '#8a6034'
+    g.fillRect(10, 5, 6, 1)
+    g.fillRect(32, 8, 8, 1)
   }
 
   // ------------------------------------------------------------------ pausa

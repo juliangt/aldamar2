@@ -316,6 +316,7 @@
   "lugares": {
     "vegaverde": {
       "nombre": "Vegaverde",
+      "nombre_corto": "Vegaverde",
       "descripcion": "Hileras de huertos, tolvaneras mecidas por el viento y la casa-redil de\nOldo Panverde. El aire huele a tierra mojada y a pan. Hacia el este, el\ncamino del molino se escabulle entre los cercos.",
       "salidas": {
         "este": "molino",
@@ -339,6 +340,7 @@
     },
     "molino": {
       "nombre": "el Camino del Molino",
+      "nombre_corto": "Molino",
       "descripcion": "El viejo molino chirría como una puerta que aprendió a quejarse. Los\nremolinos de polvo dorado bailan en la vereda; más allá, el Río Plata\nbrilla entre sauces.",
       "salidas": {
         "oeste": "vegaverde",
@@ -360,6 +362,7 @@
     },
     "puente": {
       "nombre": "el Puente de Piedra",
+      "nombre_corto": "Puente",
       "descripcion": "El puente cruza el Río Plata con la solemnidad de quien ha visto pasar\nsiglos. Las aguas cantan abajo. Un aullido largo rasga la orilla norte\ny los sauces se encogen.",
       "salidas": {
         "oeste": "molino",
@@ -383,6 +386,7 @@
     },
     "bosque": {
       "nombre": "el Bosque Umbrío",
+      "nombre_corto": "Bosque",
       "descripcion": "Los del bosque colgaron faroles de musgo en las ramas altas y debajo\nde ellos el día es verde y tibio. Flechas antiguas señalan senderos;\nalgo se mueve entre la espesura con un sonido de viento que suspira\npalabras.",
       "salidas": {
         "sur": "puente",
@@ -409,6 +413,7 @@
     },
     "rioclaro": {
       "nombre": "la Aldea de Ríoclaro",
+      "nombre_corto": "Ríoclaro",
       "descripcion": "Casitas de piedra junto al vado, gallinas opinando sobre todo y la\nposadera de Dorotea, donde el estofado es ley. De aquí parte el camino\nreal hacia Valoria, la Ciudad Dorada.",
       "salidas": {
         "norte": "puente",
@@ -430,6 +435,7 @@
     },
     "valoria": {
       "nombre": "la Ciudad Dorada de Valoria",
+      "nombre_corto": "Valoria",
       "descripcion": "Torres blancas sobre la colina y el estandarte del Sol Levantado\nondeando en la plaza. El Consejo del Sol te espera en la gran sala;\nhacia el este, las puertas de piedra dan a las minas goran.",
       "salidas": {
         "oeste": "bosque",
@@ -453,6 +459,7 @@
     },
     "minas": {
       "nombre": "las Profundidades de Barrok",
+      "nombre_corto": "Barrok",
       "descripcion": "Galerías de piedra azul donde los goran forjaron maravillas y ahora\nresuenan golpes que no son martillos. La antorcha escupe sombras\npropias en cada recodo.",
       "salidas": {
         "oeste": "valoria",
@@ -479,6 +486,7 @@
     },
     "cienagas": {
       "nombre": "las Ciénagas del Olvido",
+      "nombre_corto": "Ciénagas",
       "descripcion": "El barro guarda caras de los que dudaron demasiado. Aquí el Corazón\npalpita contra tu pecho como un pájaro impaciente, y la niebla\nsusurra lo que quieres oír.",
       "salidas": {
         "oeste": "minas",
@@ -503,6 +511,7 @@
     },
     "refugio": {
       "nombre": "la Torre de Belthar",
+      "nombre_corto": "Torre",
       "descripcion": "Un dedo de piedra sobre un islote seco en medio del fango. Dentro,\nlibros polvorientos, pan bajo un paño y una fuente de agua clara que\nsuena más vieja que la torre.",
       "salidas": {
         "sur": "cienagas",
@@ -522,6 +531,7 @@
     },
     "yerma": {
       "nombre": "los Yermos de Ceniza",
+      "nombre_corto": "Yermos",
       "descripcion": "La tierra acaba y empieza el reino del polvo. Grietas rojas pulsan al\ncompás de algo muy lejos; al noreste se alza la Aguja Pálida y al este,\nel Monte Umbak fuma como una chimenea del fin del mundo.",
       "salidas": {
         "oeste": "cienagas",
@@ -546,6 +556,7 @@
     },
     "aguja": {
       "nombre": "la Aguja Pálida",
+      "nombre_corto": "Aguja",
       "descripcion": "La atalaya de Morvath, alta y vacía como una promesa rota. Escaleras\nde caracol, ecos que llegan tarde, y un frío que te conoce por tu\nnombre. Algo custodia la cima.",
       "salidas": {
         "sur": "yerma",
@@ -565,6 +576,7 @@
     },
     "umbak": {
       "nombre": "el Monte Umbak",
+      "nombre_corto": "Umbak",
       "descripcion": "La montaña respira fuego por sus heridas. La escalera de la cumbre\nsube hacia la Forja Eterna, y el Corazón de Ceniza tira del cuello\nhacia arriba, hacia casa, hacia su nacimiento.",
       "salidas": {
         "oeste": "yerma",
