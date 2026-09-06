@@ -112,10 +112,25 @@ describe('reajustarRes al girar el dispositivo', () => {
     expect(game.events.emit).not.toHaveBeenCalled()
   })
 
-  it('re-encuadra cámaras de escenas dormidas (getScenes(false))', async () => {
+  it('re-encuadra cámaras de escenas dormidas (getScenes(false)) y ajusta textos', async () => {
     const m = await importarConPantalla(1280, 800)
+    const Phaser = (await import('phaser')).default
     const cam = { setZoom: vi.fn(), centerOn: vi.fn() }
-    const escenaDormida = { cameras: { main: cam }, zoomBase: 2, children: { list: [] } }
+
+    // Configuramos objetos de texto y contenedores anidados
+    const textObj = new Phaser.GameObjects.Text()
+    textObj.setResolution = vi.fn()
+    const nestedTextObj = new Phaser.GameObjects.Text()
+    nestedTextObj.setResolution = vi.fn()
+    const containerObj = new Phaser.GameObjects.Container()
+    containerObj.list = [nestedTextObj]
+    const otherObj = {} // Objeto que no es ni Text ni Container
+
+    const escenaDormida = {
+      cameras: { main: cam },
+      zoomBase: 2,
+      children: { list: [textObj, containerObj, otherObj] }
+    }
     const game = gameFake()
     game.scene.getScenes.mockImplementation((soloActivas) => {
       // SceneManager#getScenes(isActive): false ⇒ todas las escenas.
@@ -127,6 +142,36 @@ describe('reajustarRes al girar el dispositivo', () => {
     // Vertical: RES = round(min(390/270, 844/480)) = round(1.44) = 1
     expect(cam.setZoom).toHaveBeenCalledWith(2)
     expect(cam.centerOn).toHaveBeenCalledWith(135, 240)
+
+    // Verificar ajustarTextos (recursividad en Container y llamada a setResolution en Text)
+    expect(textObj.setResolution).toHaveBeenCalledWith(m.RES)
+    expect(nestedTextObj.setResolution).toHaveBeenCalledWith(m.RES)
+  })
+})
+
+describe('aplicarRes', () => {
+  it('aplica el zoom base multiplicado por RES y centra la cámara', async () => {
+    const m = await importarConPantalla(1920, 1080) // 480x270, RES 4
+    const cam = { setZoom: vi.fn(), centerOn: vi.fn() }
+    const escena = { cameras: { main: cam } }
+
+    m.aplicarRes(escena, 1.5)
+
+    expect(escena.zoomBase).toBe(1.5)
+    expect(cam.setZoom).toHaveBeenCalledWith(1.5 * 4)
+    expect(cam.centerOn).toHaveBeenCalledWith(240, 135) // 480/2, 270/2
+  })
+
+  it('usa zoomBase = 1 por defecto', async () => {
+    const m = await importarConPantalla(1920, 1080) // 480x270, RES 4
+    const cam = { setZoom: vi.fn(), centerOn: vi.fn() }
+    const escena = { cameras: { main: cam } }
+
+    m.aplicarRes(escena)
+
+    expect(escena.zoomBase).toBe(1)
+    expect(cam.setZoom).toHaveBeenCalledWith(1 * 4)
+    expect(cam.centerOn).toHaveBeenCalledWith(240, 135)
   })
 })
 
