@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { Audio8, BIOMAS_PADS, obtenerBioma, JINGLE, DURACION_JINGLE } from '../src/core/Audio8.js'
 
 describe('Audio8 — Síntesis y gestión sonora', () => {
@@ -12,6 +12,18 @@ describe('Audio8 — Síntesis y gestión sonora', () => {
   it('inicializa con volumen 0.8 y mute false por defecto', () => {
     expect(audio.volumenMaster).toBe(0.8)
     expect(audio.mute).toBe(false)
+  })
+
+  it('maneja errores de localStorage al inicializar sin fallar y usa valores por defecto', () => {
+    const getItemSpy = vi.spyOn(globalThis.localStorage, 'getItem').mockImplementation(() => {
+      throw new Error('Acceso denegado')
+    })
+
+    const audioConError = new Audio8()
+    expect(audioConError.volumenMaster).toBe(0.8)
+    expect(audioConError.mute).toBe(false)
+
+    getItemSpy.mockRestore()
   })
 
   it('setVolumen ajusta y persiste en localStorage entre 0 y 1', () => {
