@@ -142,6 +142,32 @@ describe('BattleScene transitions and safety fixes', () => {
     expect(caja.setVisible).toHaveBeenCalledWith(false)
     expect(texto.setVisible).toHaveBeenCalledWith(false)
   })
+
+  it('flow fallback to acabar("victoria") when an error is thrown', async () => {
+    // Setup for bypassing the while loop and causing an error on finalizar
+    battle.combate = {
+      estado: 'fin',
+      enemigos: [{ nombre: 'Enemigo 1' }],
+      iniciarRonda: vi.fn().mockReturnValue([])
+    }
+    battle.linea = vi.fn().mockResolvedValue()
+    battle.reproducir = vi.fn().mockResolvedValue()
+    battle.finalizar = vi.fn().mockRejectedValue(new Error('Test mock error'))
+    battle.acabar = vi.fn().mockResolvedValue()
+    battle.setBotonesActivos = vi.fn()
+    battle.refrescarBotones = vi.fn()
+
+    // Suppress console.error during this test
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    await battle.flow()
+
+    expect(battle.finalizar).toHaveBeenCalled()
+    expect(consoleSpy).toHaveBeenCalledWith('Error en BattleScene.flow:', expect.any(Error))
+    expect(battle.acabar).toHaveBeenCalledWith('victoria')
+
+    consoleSpy.mockRestore()
+  })
 })
 
 describe('WorldScene enemy overlap safety fixes', () => {
