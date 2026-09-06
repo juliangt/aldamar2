@@ -59,6 +59,8 @@ export class MenuScene extends Phaser.Scene {
     const dy = vertical ? 56 : 0
     // Separación de las flechas del navegador de campañas, acotada al ancho.
     const navDX = Math.min(140, width / 2 - 20)
+    const navY = 66 + dy
+
     const avActual = this.aventuras[this.indiceAventura]
     const totalAv = this.aventuras.length
     const legado = Legacy.cargar()
@@ -69,7 +71,37 @@ export class MenuScene extends Phaser.Scene {
     const saveExistente = GameState.restaurar(claveAv)
     const finalCompletado = legado.finales[claveAv]
 
-    // ------------------------------------------------ Cabecera (Sello + Título)
+    const ctx = {
+      width,
+      height,
+      vertical,
+      dy,
+      navDX,
+      navY,
+      avActual,
+      totalAv,
+      legado,
+      claveAv,
+      saveExistente,
+      finalCompletado,
+    }
+
+    const elementosCabecera = this.crearCabecera(ctx)
+    const elementosNavegador = this.crearNavegador(ctx)
+    const elementosTarjeta = this.crearTarjeta(ctx)
+    const elementosDev = this.crearBotonDev(ctx)
+
+    this.raiz.add([
+      ...elementosCabecera,
+      ...elementosNavegador,
+      ...elementosTarjeta,
+      ...elementosDev,
+    ])
+  }
+
+  crearCabecera(ctx) {
+    const { width, dy, legado } = ctx
+
     const miniSello = this.add
       .text(width / 2 - 90, 18 + dy, MINI_SELLO_MENU.join('\n'), {
         fontFamily: FUENTE,
@@ -110,8 +142,12 @@ export class MenuScene extends Phaser.Scene {
         this.renderizarVista()
       })
 
-    // ------------------------------------------------ Navegador de Aventuras
-    const navY = 66 + dy
+    return [miniSello, titulo, subtitulo, btnLegado]
+  }
+
+  crearNavegador(ctx) {
+    const { width, navDX, navY, totalAv, vertical } = ctx
+
     const navIzq = this.add
       .text(width / 2 - navDX, navY, '◄', {
         fontFamily: FUENTE,
@@ -148,7 +184,12 @@ export class MenuScene extends Phaser.Scene {
         this.renderizarVista()
       })
 
-    // ------------------------------------------------ Tarjeta de la Aventura
+    return [navIzq, navTxt, navDer]
+  }
+
+  crearTarjeta(ctx) {
+    const { width, navY, avActual, finalCompletado, saveExistente, claveAv } = ctx
+
     const cardW = width - 44
     const cardH = 138
     const cardX = width / 2
@@ -201,7 +242,12 @@ export class MenuScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
 
-    // Botones de acción
+    const elementosBotones = this.crearBotonesAccion(cardX, cardY, saveExistente, claveAv)
+
+    return [fondoCard, titAv, descAv, txtEstado, ...elementosBotones]
+  }
+
+  crearBotonesAccion(cardX, cardY, saveExistente, claveAv) {
     const elementosBotones = []
     if (saveExistente) {
       const btnContinuar = this.add
@@ -255,33 +301,22 @@ export class MenuScene extends Phaser.Scene {
       elementosBotones.push(btnEmpezar)
     }
 
-    // Acceso oculto dev (Arena) exclusivamente en desarrollo
-    let btnDevArena = null
+    return elementosBotones
+  }
+
+  crearBotonDev(ctx) {
+    const { height } = ctx
     if (import.meta.env.DEV) {
-      btnDevArena = this.add
+      const btnDevArena = this.add
         .text(10, height - 12, '≡', { fontFamily: FUENTE, fontSize: '8px', color: '#444444' })
         .setInteractive({ useHandCursor: true })
         .on('pointerdown', () => {
           if (!partida.aventura) partida.nuevaPartida('corazon_ceniza', 'tilo')
           this.scene.start('Arena')
         })
+      return [btnDevArena]
     }
-
-    this.raiz.add([
-      miniSello,
-      titulo,
-      subtitulo,
-      btnLegado,
-      navIzq,
-      navTxt,
-      navDer,
-      fondoCard,
-      titAv,
-      descAv,
-      txtEstado,
-      ...elementosBotones,
-      ...(btnDevArena ? [btnDevArena] : []),
-    ])
+    return []
   }
 
   // --------------------------------------------------- Panel de Legado persistente
