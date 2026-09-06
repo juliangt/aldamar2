@@ -9,25 +9,29 @@ import { Texto } from './core/Texto.js'
 import { Rng } from './core/Rng.js'
 import Datos from './core/Datos.js'
 import { partida } from './core/partida.js'
-import { RES, reajustarRes } from './core/resolucion.js'
+import { RES, reajustarRes, registrarTexto } from './core/resolucion.js'
 import { alternarPantallaCompleta, pedirPantallaCompletaEnPrimerGesto } from './core/pantalla.js'
 
 // Textos nítidos con supersampling: rasterizar a la resolución real del
 // canvas (resolution) en vez de dejar que el zoom de cámara escale una
 // textura de fuente minúscula.
-if (RES > 1) {
-  for (const proto of [
-    Phaser.GameObjects.GameObjectFactory.prototype,
-    Phaser.GameObjects.GameObjectCreator.prototype,
-  ]) {
-    const textOriginal = proto.text
-    if (!textOriginal) continue
-    proto.text = function (x, y, contenido, estilo) {
-      return textOriginal.call(this, x, y, contenido, {
-        resolution: RES,
-        ...estilo,
-      })
-    }
+//
+// También registramos todos los textos globalmente para poder actualizar
+// su resolución de forma plana en `reajustarRes` sin recorrer todo el árbol
+// de escenas.
+for (const proto of [
+  Phaser.GameObjects.GameObjectFactory.prototype,
+  Phaser.GameObjects.GameObjectCreator.prototype,
+]) {
+  const textOriginal = proto.text
+  if (!textOriginal) continue
+  proto.text = function (x, y, contenido, estilo) {
+    const texto = textOriginal.call(this, x, y, contenido, {
+      resolution: RES,
+      ...estilo,
+    })
+    registrarTexto(texto)
+    return texto
   }
 }
 
