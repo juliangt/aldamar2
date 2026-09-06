@@ -15,6 +15,15 @@ describe('Legacy (persistencia global entre aventuras)', () => {
     expect(legado.finales).toEqual({})
   })
 
+  it('cargar() recupera un estado vacío si el JSON en localStorage está malformado', () => {
+    localStorage.setItem('aldamar:legado', '{malformed JSON')
+    const legado = Legacy.cargar()
+    expect(legado.juramento).toBe(false)
+    expect(legado.grieta).toBe(false)
+    expect(legado.heroes).toEqual([])
+    expect(legado.finales).toEqual({})
+  })
+
   it('exportar() mapea flags de la aventura y anota héroe y final', () => {
     const gs = new GameState()
     gs.nuevaPartida('corazon_ceniza', 'tilo', 'camino')
