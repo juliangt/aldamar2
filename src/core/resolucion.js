@@ -41,6 +41,19 @@ export function calcularRes() {
 
 export let RES = calcularRes()
 
+// Registro global de textos para optimizar el re-escalado sin recorrer la
+// jerarquía de escenas recursivamente.
+export const textosRegistrados = new Set()
+
+export function registrarTexto(texto) {
+  textosRegistrados.add(texto)
+  const destroyOriginal = texto.destroy
+  texto.destroy = function (...args) {
+    textosRegistrados.delete(texto)
+    if (destroyOriginal) return destroyOriginal.apply(this, args)
+  }
+}
+
 // Evento de re-layout: se emite en el bus del game cuando cambia la
 // orientación. Las escenas se suscriben con `alRelayout`.
 export const EVENTO_RELAYOUT = 'vista-relayout'
@@ -87,15 +100,14 @@ export function reajustarRes(game) {
       cam.setZoom((escena.zoomBase ?? 1) * RES)
       cam.centerOn(VISTA.width / 2, VISTA.height / 2)
     }
-    if (escena.children?.list) ajustarTextos(escena.children.list)
   }
+
+  for (const texto of textosRegistrados) {
+    if (texto.scene && texto.active !== false) {
+      texto.setResolution(RES)
+    }
+  }
+
   if (cambiaOrientacion) game.events.emit(EVENTO_RELAYOUT)
   return true
-}
-
-function ajustarTextos(objetos) {
-  for (const obj of objetos) {
-    if (obj instanceof Phaser.GameObjects.Text) obj.setResolution(RES)
-    if (obj instanceof Phaser.GameObjects.Container) ajustarTextos(obj.list)
-  }
 }
