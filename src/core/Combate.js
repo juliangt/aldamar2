@@ -136,7 +136,7 @@ export class Combate {
   iniciarRonda() {
     const ev = []
     this.turno++
-    for (const h of this.heroes.slice()) ev.push(...this.eventosVeneno('heroes', h))
+    for (const h of this.heroes) ev.push(...this.eventosVeneno('heroes', h))
     ev.push(...this.chequearFinHeroes())
     if (this.estado !== 'fin') {
       this.estado = this.enemigosVivos().length > 1 ? 'objetivo' : 'menu'
@@ -281,7 +281,8 @@ export class Combate {
   // si vive o a cualquiera *(interpretación)*.
   turnoAliados(objetivoIdx = 0) {
     const ev = []
-    for (const aliado of this.heroes.slice(1)) {
+    for (let i = 1; i < this.heroes.length; i++) {
+      const aliado = this.heroes[i]
       if (aliado.vida <= 0 || this.estado === 'fin') continue
       const vivos = this.enemigosVivos()
       if (!vivos.length) break
@@ -304,7 +305,9 @@ export class Combate {
   // eventos en orden; cada enemigo actúa según su IA.
   turnoEnemigos() {
     const ev = []
-    for (const enemigo of this.enemigos.slice()) {
+    const initialLen = this.enemigos.length
+    for (let i = 0; i < initialLen; i++) {
+      const enemigo = this.enemigos[i]
       if (this.estado === 'fin') break
       if (!enemigo.vivo || enemigo.vida <= 0) continue
       ev.push(...this.eventosVeneno('enemigos', enemigo))
@@ -472,7 +475,8 @@ export class Combate {
     const p = this.p
     p.stats.vida = Math.max(this.heroe().vida, this.resultado === 'victoria' ? 1 : 0)
     p.companerosSalud = p.companerosSalud || {}
-    for (const h of this.heroes.slice(1)) {
+    for (let i = 1; i < this.heroes.length; i++) {
+      const h = this.heroes[i]
       const vida = h.vida > 0 ? h.vida : this.resultado === 'victoria' ? 1 : 0
       p.companerosSalud[h.id] = { vida, vidaMax: h.vidaMax }
     }
