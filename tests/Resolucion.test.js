@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-// Phaser real no carga en node (usa window); mock mínimo con las clases que
-// toca ajustarTextos.
+// Phaser real no carga en node (usa window); mock mínimo del módulo.
 vi.mock('phaser', () => ({
   default: {
     GameObjects: {
@@ -112,25 +111,23 @@ describe('reajustarRes al girar el dispositivo', () => {
     expect(game.events.emit).not.toHaveBeenCalled()
   })
 
-  it('re-encuadra cámaras de escenas dormidas (getScenes(false)) y ajusta textos', async () => {
+  it('re-encuadra cámaras de escenas dormidas (getScenes(false)) y ajusta textos registrados', async () => {
     const m = await importarConPantalla(1280, 800)
-    const Phaser = (await import('phaser')).default
     const cam = { setZoom: vi.fn(), centerOn: vi.fn() }
 
-    // Configuramos objetos de texto y contenedores anidados
-    const textObj = new Phaser.GameObjects.Text()
-    textObj.setResolution = vi.fn()
-    const nestedTextObj = new Phaser.GameObjects.Text()
-    nestedTextObj.setResolution = vi.fn()
-    const containerObj = new Phaser.GameObjects.Container()
-    containerObj.list = [nestedTextObj]
-    const otherObj = {} // Objeto que no es ni Text ni Container
-
+    // Textos registrados (main.js registra cada texto al crearlo): el ajuste
+    // es plano sobre el registro, sin recorrer la jerarquía de la escena.
+    const textObj = { scene: {}, active: true, setResolution: vi.fn() }
+    const nestedTextObj = { scene: {}, active: true, setResolution: vi.fn() }
+    const containerObj = { list: [nestedTextObj] }
     const escenaDormida = {
       cameras: { main: cam },
       zoomBase: 2,
-      children: { list: [textObj, containerObj, otherObj] }
+      children: { list: [textObj, containerObj] },
     }
+    m.registrarTexto(textObj)
+    m.registrarTexto(nestedTextObj)
+
     const game = gameFake()
     game.scene.getScenes.mockImplementation((soloActivas) => {
       // SceneManager#getScenes(isActive): false ⇒ todas las escenas.
@@ -143,9 +140,32 @@ describe('reajustarRes al girar el dispositivo', () => {
     expect(cam.setZoom).toHaveBeenCalledWith(2)
     expect(cam.centerOn).toHaveBeenCalledWith(135, 240)
 
-    // Verificar ajustarTextos (recursividad en Container y llamada a setResolution en Text)
+    // Ambos textos (también el anidado en un Container) actualizan resolución
     expect(textObj.setResolution).toHaveBeenCalledWith(m.RES)
     expect(nestedTextObj.setResolution).toHaveBeenCalledWith(m.RES)
+  })
+
+  it('los textos destruidos salen del registro y no se re-ajustan', async () => {
+    const m = await importarConPantalla(1280, 800)
+    const vivo = { scene: {}, setResolution: vi.fn() }
+    const muerto = {
+      scene: {},
+      setResolution: vi.fn(),
+      destroy() {},
+    }
+    m.registrarTexto(vivo)
+    m.registrarTexto(muerto)
+
+    muerto.destroy()
+    expect(m.textosRegistrados.has(muerto)).toBe(false)
+    expect(m.textosRegistrados.has(vivo)).toBe(true)
+
+    const game = gameFake()
+    vi.stubGlobal('window', { innerWidth: 390, innerHeight: 844 })
+    m.reajustarRes(game)
+
+    expect(vivo.setResolution).toHaveBeenCalledWith(m.RES)
+    expect(muerto.setResolution).not.toHaveBeenCalled()
   })
 })
 
