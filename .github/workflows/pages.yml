@@ -1,8 +1,7 @@
 name: Deploy a GitHub Pages
 
+# Solo manual: se lanza desde la pestaña Actions (o `gh workflow run`)
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 # Permisos mínimos para publicar en Pages (subir artefacto + OIDC)
