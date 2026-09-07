@@ -65,6 +65,27 @@ test.describe('Aldamar E2E Suite', () => {
     expect(erroresConsola).toHaveLength(0)
   })
 
+  test('canvas supersampleado a la resolución física de la pantalla retina', async ({ page }) => {
+    await page.goto('/')
+    const canvas = page.locator('#app canvas')
+    await canvas.waitFor({ state: 'attached', timeout: 10000 })
+    await page.waitForFunction(() => window.__ALDAMAR__?.game?.isBooted)
+    await page.waitForTimeout(300) // un frame para que Scale.FIT fije el tamaño CSS
+
+    const info = await canvas.evaluate((c) => {
+      const r = c.getBoundingClientRect()
+      return {
+        backingW: c.width,
+        fisicoW: r.width * window.devicePixelRatio,
+      }
+    })
+
+    // El render interno nunca debe quedar por debajo de los píxeles reales
+    // que ocupa el canvas en pantalla: si queda por debajo el navegador lo
+    // amplifica y el juego se ve borroso/pixelado (regresión móvil retina).
+    expect(info.backingW).toBeGreaterThanOrEqual(info.fisicoW - 1)
+  })
+
   test('adaptabilidad responsiva vertical / horizontal', async ({ page }) => {
     await page.goto('/')
     const canvas = page.locator('#app canvas')

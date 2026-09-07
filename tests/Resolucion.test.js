@@ -4,9 +4,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 vi.mock('phaser', async () => (await import('./helpers/phaser.js')).phaserStub)
 
 // Importa resolucion.js fresco con un tamaño de pantalla stubbeado.
-async function importarConPantalla(ancho, alto) {
+// `dpr` simula el devicePixelRatio (retina = 2–3); por defecto 1 como en
+// un monitor normal.
+async function importarConPantalla(ancho, alto, dpr = 1) {
   vi.resetModules()
-  vi.stubGlobal('window', { innerWidth: ancho, innerHeight: alto })
+  vi.stubGlobal('window', { innerWidth: ancho, innerHeight: alto, devicePixelRatio: dpr })
   return await import('../src/core/resolucion.js')
 }
 
@@ -55,19 +57,37 @@ describe('Orientación adaptativa (VISTA dinámica)', () => {
     let m = await importarConPantalla(10, 10)
     expect(m.calcularRes()).toBe(1) // Math.max(1, ...)
 
-    // muy grande (fit > 4)
-    m = await importarConPantalla(4000, 4000)
-    expect(m.calcularRes()).toBe(4) // Math.min(4, ...)
+    // muy grande (fit > 10)
+    m = await importarConPantalla(6000, 6000)
+    expect(m.calcularRes()).toBe(10) // Math.min(10, ...)
   })
 
-  it('calcularRes testea el redondeo correcto', async () => {
-    // fit 1.49 => 1
+  it('calcularRes redondea hacia arriba para no ampliar nunca', async () => {
+    // fit 1.49 => 2: con floor/round el canvas quedaría por debajo de la
+    // pantalla física y el navegador lo amplificaría (borroso).
     let m = await importarConPantalla(480 * 1.49, 270 * 1.49)
-    expect(m.calcularRes()).toBe(1)
-
-    // fit 1.5 => 2
-    m = await importarConPantalla(480 * 1.5, 270 * 1.5)
     expect(m.calcularRes()).toBe(2)
+
+    // fit entero exacto se respeta
+    m = await importarConPantalla(480 * 2, 270 * 2)
+    expect(m.calcularRes()).toBe(2)
+  })
+
+  it('calcularRes usa los píxeles físicos (devicePixelRatio) en retina', async () => {
+    // iPhone vertical: 390×844 puntos CSS × dpr 3 = 1170×2532 px reales.
+    // fit = min(1170/270, 2532/480) = 4.33 → RES 5 (antes, sin dpr,
+    // round(1.44) = 1 y el canvas de 270×480 se estiraba ×4.3: pixelado).
+    let m = await importarConPantalla(390, 844, 3)
+    expect(m.calcularRes()).toBe(5)
+
+    // iPhone girado: 844×390 × 3 = 2532×1170 → min(2532/480, 1170/270)
+    // = 4.33 → RES 5
+    m = await importarConPantalla(844, 390, 3)
+    expect(m.calcularRes()).toBe(5)
+
+    // iPhone SE (dpr 2): 750×1334 físicos → fit 2.78 → RES 3
+    m = await importarConPantalla(375, 667, 2)
+    expect(m.calcularRes()).toBe(3)
   })
 })
 
@@ -80,8 +100,8 @@ describe('reajustarRes al girar el dispositivo', () => {
 
     const cambio = m.reajustarRes(game)
     expect(cambio).toBe(true)
-    // RES en horizontal 844×390: min(844/480, 390/270) = 1.44 → 1
-    expect(game.scale.setGameSize).toHaveBeenCalledWith(480, 270)
+    // RES en horizontal 844×390 (dpr 1): ceil(min(1.76, 1.44)) = 2
+    expect(game.scale.setGameSize).toHaveBeenCalledWith(480 * 2, 270 * 2)
     expect(game.events.emit).toHaveBeenCalledWith('vista-relayout')
     expect(m.VISTA).toEqual({ width: 480, height: 270 })
   })
@@ -129,8 +149,8 @@ describe('reajustarRes al girar el dispositivo', () => {
     vi.stubGlobal('window', { innerWidth: 390, innerHeight: 844 })
 
     m.reajustarRes(game)
-    // Vertical: RES = round(min(390/270, 844/480)) = round(1.44) = 1
-    expect(cam.setZoom).toHaveBeenCalledWith(2)
+    // Vertical (dpr 1): RES = ceil(min(390/270, 844/480)) = ceil(1.44) = 2
+    expect(cam.setZoom).toHaveBeenCalledWith(2 * 2)
     expect(cam.centerOn).toHaveBeenCalledWith(135, 240)
 
     // Ambos textos (también el anidado en un Container) actualizan resolución
