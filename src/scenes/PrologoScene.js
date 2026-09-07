@@ -121,18 +121,9 @@ export class PrologoScene extends Phaser.Scene {
       repeat: -1,
     })
 
-    // Botón de saltar prólogo
-    this.add
-      .text(width - 12, 12, 'SALTAR ❯❯', {
-        fontFamily: FUENTE,
-        fontSize: '7px',
-        color: '#707070',
-      })
-      .setOrigin(1, 0)
-      .setInteractive({ useHandCursor: true })
-      .on('pointerdown', () => this.iniciarMundo())
-
-    // Zona interactiva modal a pantalla completa
+    // Zona interactiva modal a pantalla completa. Se crea ANTES que el
+    // botón de saltar: el input solo lo recibe el objeto de más arriba y
+    // una zona posterior taparía el botón en toda la pantalla.
     this.zonaTap = this.add
       .zone(width / 2, height / 2, width, height)
       .setInteractive()
@@ -140,6 +131,22 @@ export class PrologoScene extends Phaser.Scene {
 
     this.input.keyboard?.on('keydown-SPACE', () => this.avanzar())
     this.input.keyboard?.on('keydown-ENTER', () => this.avanzar())
+
+    // Botón de saltar prólogo, por encima de la zona. Área de toque con
+    // margen: el texto de 7px es demasiado pequeño para un dedo.
+    this.btnSaltar = this.add
+      .text(width - 12, 12, 'SALTAR ❯❯', {
+        fontFamily: FUENTE,
+        fontSize: '7px',
+        color: '#707070',
+      })
+      .setOrigin(1, 0)
+    this.btnSaltar.setInteractive(
+      new Phaser.Geom.Rectangle(-14, -8, this.btnSaltar.width + 28, this.btnSaltar.height + 16),
+      Phaser.Geom.Rectangle.Contains
+    )
+    this.btnSaltar.input.cursor = 'pointer'
+    this.btnSaltar.on('pointerdown', () => this.iniciarMundo())
 
     this.paginar()
     if (this.paginas.length === 0) {
@@ -201,6 +208,7 @@ export class PrologoScene extends Phaser.Scene {
     if (this.zonaTap.input?.hitArea?.setSize) {
       this.zonaTap.input.hitArea.setSize(width, height)
     }
+    this.btnSaltar.setPosition(width - 12, 12)
 
     if (!this.paginas.length) return
     const actual = this.paginas[this.indicePagina]
