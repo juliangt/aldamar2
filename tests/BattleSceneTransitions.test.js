@@ -1,29 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-vi.mock('phaser', () => {
-  class Scene {
-    constructor(key) {
-      this.key = key
-    }
-  }
-  return {
-    default: {
-      Scene,
-      Scenes: {
-        Events: {
-          WAKE: 'wake',
-          SLEEP: 'sleep',
-        },
-      },
-      Input: {
-        Keyboard: {
-          JustDown: vi.fn(),
-        },
-      },
-    },
-    Scene,
-  }
-})
+vi.mock('phaser', async () => (await import('./helpers/phaser.js')).phaserStub)
 
 vi.mock('../src/core/Audio8.js', () => ({
   audio8: {
@@ -40,6 +17,9 @@ vi.mock('../src/assets/heroe.png', () => ({
 
 import BattleScene from '../src/scenes/BattleScene.js'
 import { WorldScene } from '../src/scenes/WorldScene.js'
+import LogBatalla from '../src/scenes/batalla/LogBatalla.js'
+import Botonera from '../src/scenes/batalla/Botonera.js'
+import { crearMockEscena } from './helpers/phaser.js'
 
 describe('BattleScene transitions and safety fixes', () => {
   let battle
@@ -119,24 +99,17 @@ describe('BattleScene transitions and safety fixes', () => {
   })
 
   it('refrescarBotones disables interactivity when button is not visible or estado is fin', () => {
-    const zona = {
-      setVisible: vi.fn().mockReturnThis(),
-      setInteractive: vi.fn().mockReturnThis(),
-      disableInteractive: vi.fn().mockReturnThis(),
-    }
-    const caja = { setVisible: vi.fn() }
-    const texto = { setVisible: vi.fn() }
-
-    battle.combate = {
+    const escena = crearMockEscena()
+    escena.combate = {
       aventura: 'corazon_ceniza',
       estado: 'fin',
     }
-    battle.botones = {
-      atacar: { zona, caja, texto },
-    }
+    escena.logY = 204
+    const botonera = new Botonera(escena, { onAccion: vi.fn() })
 
-    battle.refrescarBotones()
+    botonera.refrescar()
 
+    const { zona, caja, texto } = botonera.botones.atacar
     expect(zona.setVisible).toHaveBeenCalledWith(false)
     expect(zona.disableInteractive).toHaveBeenCalled()
     expect(caja.setVisible).toHaveBeenCalledWith(false)
@@ -144,25 +117,24 @@ describe('BattleScene transitions and safety fixes', () => {
   })
 
   it('linea resolves a pending previous line instead of orphaning it (secreto/cuervo hang)', async () => {
-    const bs = new BattleScene()
+    const escena = crearMockEscena()
     let autoAvance = null
-    bs.time = {
-      delayedCall: vi.fn((_ms, cb) => {
-        autoAvance = cb
-        return { remove: vi.fn() }
-      }),
-    }
-    bs.logTexto = { setText: vi.fn() }
+    escena.time.delayedCall = vi.fn((_ms, cb) => {
+      autoAvance = cb
+      return { remove: vi.fn() }
+    })
+    const log = new LogBatalla(escena)
+    log.texto = { setText: vi.fn() }
 
-    const p1 = bs.linea('El cuervo planea sobre el combate…')
+    const p1 = log.linea('El cuervo planea sobre el combate…')
     // Antes del fix, esta segunda linea() machacaba logResolver y p1
     // nunca se resolvía: el flujo del combate quedaba colgado.
-    const p2 = bs.linea('El lobo golpea.')
+    const p2 = log.linea('El lobo golpea.')
     await p1
 
     autoAvance()
     await p2
-    expect(bs.logResolver).toBeNull()
+    expect(log.resolver).toBeNull()
   })
 
   it('flow fallback to acabar("victoria") when an error is thrown', async () => {

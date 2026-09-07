@@ -1,13 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-vi.mock('phaser', () => ({
-  default: {
-    GameObjects: {
-      Text: class Text {},
-      Container: class Container {},
-    },
-  },
-}))
+vi.mock('phaser', async () => (await import('../helpers/phaser.js')).phaserStub)
 
 vi.mock('../../src/core/Audio8.js', () => ({
   audio8: {
@@ -17,49 +10,7 @@ vi.mock('../../src/core/Audio8.js', () => ({
 
 import SelectorOpciones from '../../src/ui/SelectorOpciones.js'
 import { audio8 } from '../../src/core/Audio8.js'
-
-function crearMockEscena() {
-  const pointerListeners = new Map()
-
-  const crearElemento = (props = {}) => ({
-    setPosition: vi.fn().mockReturnThis(),
-    setSize: vi.fn().mockReturnThis(),
-    setDepth: vi.fn().mockReturnThis(),
-    setVisible: vi.fn().mockReturnThis(),
-    setStrokeStyle: vi.fn().mockReturnThis(),
-    setOrigin: vi.fn().mockReturnThis(),
-    setText: vi.fn().mockReturnThis(),
-    setColor: vi.fn().mockReturnThis(),
-    setInteractive: vi.fn().mockReturnThis(),
-    on: vi.fn(function (ev, cb) {
-      pointerListeners.set(cb, ev)
-      this._onClick = cb
-      return this
-    }),
-    destroy: vi.fn(),
-    input: { enabled: true, hitArea: { setSize: vi.fn() } },
-    list: [],
-    add: vi.fn(function (items) {
-      if (Array.isArray(items)) this.list.push(...items)
-      else this.list.push(items)
-      return this
-    }),
-    ...props,
-  })
-
-  return {
-    add: {
-      container: vi.fn(() => crearElemento()),
-      zone: vi.fn(() => crearElemento()),
-      rectangle: vi.fn(() => crearElemento()),
-      text: vi.fn(() => crearElemento()),
-    },
-    events: {
-      on: vi.fn(),
-      emit: vi.fn(),
-    },
-  }
-}
+import { crearMockEscena } from '../helpers/phaser.js'
 
 describe('SelectorOpciones Unit Tests', () => {
   let escena

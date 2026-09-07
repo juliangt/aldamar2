@@ -8,7 +8,7 @@ import { partida } from '../core/partida.js'
 import Balance from '../core/Balance.js'
 import { VISTA, aplicarRes, alRelayout } from '../core/resolucion.js'
 
-const FUENTE = '"Press Start 2P", monospace'
+import { FUENTE } from '../ui/tema.js'
 
 export class ArenaScene extends Phaser.Scene {
   constructor() {

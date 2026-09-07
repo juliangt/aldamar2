@@ -11,7 +11,7 @@ import { partida } from '../core/partida.js'
 import { audio8 } from '../core/Audio8.js'
 import { VISTA, aplicarRes, alRelayout } from '../core/resolucion.js'
 
-const FUENTE = '"Press Start 2P", monospace'
+import { FUENTE } from '../ui/tema.js'
 const CAR_POR_SG = 30
 const CAJA_H = 150
 

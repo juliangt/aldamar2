@@ -1,26 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
-vi.mock('phaser', () => {
-  class Scene {
-    constructor(key) {
-      this.key = key
-    }
-  }
-  return {
-    default: {
-      Scene,
-      Scale: {
-        FIT: 0,
-        CENTER_BOTH: 0,
-      },
-      GameObjects: {
-        Text: class Text {},
-        Container: class Container {},
-      },
-    },
-    Scene,
-  }
-})
+vi.mock('phaser', async () => (await import('../helpers/phaser.js')).phaserStub)
 
 import { BootScene } from '../../src/scenes/BootScene.js'
 import * as resolucion from '../../src/core/resolucion.js'

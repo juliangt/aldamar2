@@ -2,20 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 
-vi.mock('phaser', () => {
-  class Scene {}
-  return {
-    default: {
-      AUTO: 'auto',
-      Scene,
-      Scale: {
-        FIT: 0,
-        CENTER_BOTH: 0,
-      },
-    },
-    Scene,
-  }
-})
+vi.mock('phaser', async () => (await import('../helpers/phaser.js')).phaserStub)
 
 import config from '../../src/config.js'
 

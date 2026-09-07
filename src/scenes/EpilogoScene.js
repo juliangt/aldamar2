@@ -9,7 +9,7 @@ import GameState from '../core/GameState.js'
 import { audio8, DURACION_JINGLE } from '../core/Audio8.js'
 import { VISTA, aplicarRes, alRelayout } from '../core/resolucion.js'
 
-const FUENTE = '"Press Start 2P", monospace'
+import { FUENTE } from '../ui/tema.js'
 
 const MINI_SELLO = [
   '    .--.      |    ',
