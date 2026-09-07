@@ -32,11 +32,20 @@ export function esVistaVertical() {
   return VISTA.height > VISTA.width
 }
 
-// Multiplicador entero según cuántas veces cabe la vista en la pantalla.
-export function calcularRes() {
+// Multiplicador entero según cuántas veces cabe la vista en la pantalla
+// física: en móviles retina cada píxel CSS son 2–3 píxeles reales, así que
+// hay que multiplicar por devicePixelRatio o el canvas queda chico y el
+// navegador lo amplía (borroso). Se redondea hacia arriba para que el
+// render interno nunca quede por debajo de la resolución física: el
+// navegador solo reduce (nítido), nunca amplía.
+export function calcularRes(vista = VISTA) {
   if (typeof window === 'undefined') return 1
-  const fit = Math.min(window.innerWidth / VISTA.width, window.innerHeight / VISTA.height)
-  return Math.max(1, Math.min(4, Math.round(fit)))
+  const dpr = window.devicePixelRatio || 1
+  const fit = Math.min(
+    (window.innerWidth * dpr) / vista.width,
+    (window.innerHeight * dpr) / vista.height
+  )
+  return Math.max(1, Math.min(10, Math.ceil(fit)))
 }
 
 export let RES = calcularRes()
@@ -86,7 +95,10 @@ export function aplicarRes(escena, zoomBase = 1) {
 export function reajustarRes(game) {
   const nuevaVista = tamanoPantalla()
   const cambiaOrientacion = nuevaVista !== VISTA
-  const nuevaRes = calcularRes()
+  // Medir contra la vista nueva: si se usa VISTA todavía sin actualizar,
+  // al girar el dispositivo se cruzan vista vertical con pantalla
+  // horizontal y el fit sale por debajo de 1.
+  const nuevaRes = calcularRes(nuevaVista)
   if (!cambiaOrientacion && nuevaRes === RES) return false
 
   if (cambiaOrientacion) VISTA = nuevaVista

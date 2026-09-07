@@ -65,6 +65,68 @@ test.describe('Aldamar E2E Suite', () => {
     expect(erroresConsola).toHaveLength(0)
   })
 
+  test('canvas supersampleado a la resolución física de la pantalla retina', async ({ page }) => {
+    await page.goto('/')
+    const canvas = page.locator('#app canvas')
+    await canvas.waitFor({ state: 'attached', timeout: 10000 })
+    await page.waitForFunction(() => window.__ALDAMAR__?.game?.isBooted)
+    await page.waitForTimeout(300) // un frame para que Scale.FIT fije el tamaño CSS
+
+    const info = await canvas.evaluate((c) => {
+      const r = c.getBoundingClientRect()
+      return {
+        backingW: c.width,
+        fisicoW: r.width * window.devicePixelRatio,
+      }
+    })
+
+    // El render interno nunca debe quedar por debajo de los píxeles reales
+    // que ocupa el canvas en pantalla: si queda por debajo el navegador lo
+    // amplifica y el juego se ve borroso/pixelado (regresión móvil retina).
+    expect(info.backingW).toBeGreaterThanOrEqual(info.fisicoW - 1)
+  })
+
+  test('botón SALTAR del prólogo salta directamente al mundo', async ({ page }) => {
+    await page.goto('/')
+    await page.waitForFunction(() => window.__ALDAMAR__?.game?.isBooted)
+
+    // Entrar directo al prólogo como en el flujo real (HeroeScene):
+    // sembrar la partida y arrancar Prologo
+    await page.evaluate(() => {
+      const g = window.__ALDAMAR__.game
+      const { partida } = window.__ALDAMAR__
+      partida.nuevaPartida('corazon_ceniza', 'tilo')
+      for (const s of g.scene.getScenes(true)) g.scene.stop(s.scene.key)
+      g.scene.start('Prologo', {})
+    })
+    await page.waitForFunction(() => window.__ALDAMAR__.game.scene.isActive('Prologo'))
+    await page.waitForTimeout(200)
+
+    // Clic sobre el botón (posición real del objeto, válida en ambas
+    // orientaciones), convertido a coordenadas de página vía worldView
+    const pos = await page.evaluate(() => {
+      const g = window.__ALDAMAR__.game
+      const pro = g.scene.getScene('Prologo')
+      const b = pro.btnSaltar
+      const v = pro.cameras.main.worldView
+      const r = g.canvas.getBoundingClientRect()
+      return {
+        x: r.left + ((b.x - b.width / 2 - v.x) / v.width) * r.width,
+        y: r.top + ((b.y + b.height / 2 - v.y) / v.height) * r.height,
+      }
+    })
+    await page.mouse.click(pos.x, pos.y)
+
+    // Regresión: la zona táctil a pantalla completa creada después del
+    // botón tapaba sus toques y en vez de saltar solo avanzaba la página.
+    await expect
+      .poll(() => page.evaluate(() => window.__ALDAMAR__.game.scene.isActive('World')))
+      .toBe(true)
+    expect(
+      await page.evaluate(() => window.__ALDAMAR__.game.scene.isActive('Prologo'))
+    ).toBe(false)
+  })
+
   test('adaptabilidad responsiva vertical / horizontal', async ({ page }) => {
     await page.goto('/')
     const canvas = page.locator('#app canvas')
