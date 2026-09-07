@@ -1,0 +1,57 @@
+name: Deploy a GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Permisos mínimos para publicar en Pages (subir artefacto + OIDC)
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: deploy-pages
+  cancel-in-progress: true
+
+jobs:
+  # -------------------------------------------------------------
+  # VALIDAR, COMPILAR Y PUBLICAR en https://juliangt.github.io/aldamar2/
+  # -------------------------------------------------------------
+  deploy:
+    name: 'Publicar en GitHub Pages'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.despliegue.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Validar datos y suite de tests
+        run: npm run test:all
+
+      # --base: Pages sirve el juego bajo /aldamar2/, no en la raíz del
+      # dominio. Con un dominio propio habría que volver a '/'.
+      - name: Compilar bundle de producción
+        run: npm run build -- --base=/aldamar2/
+
+      - name: Configurar GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Subir artefacto de Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist/
+
+      - name: Publicar
+        id: despliegue
+        uses: actions/deploy-pages@v4

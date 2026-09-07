@@ -80,6 +80,8 @@ Cuatro aventuras independientes pero encadenadas por el **legado**: las decision
 
 ## Cómo jugar
 
+**▶ Jugar online:** [juliangt.github.io/aldamar2](https://juliangt.github.io/aldamar2/) — el build de producción se publica automáticamente en cada push a `main`.
+
 ### Orientación y pantalla
 
 - **Móvil en vertical (agarre natural):** la vista lógica es 270×480; todo el juego (menús, mundo, combate, paneles) se re-organiza para el formato vertical.
@@ -220,6 +222,10 @@ El flujo de trabajo [ci.yml](.github/workflows/ci.yml) define un pipeline multi-
 | 5 | `build` | Compilación de producción con Vite; el artefacto `dist` se sube y se conserva 14 días |
 
 Al lanzarlo manualmente se elige si ejecutar el pipeline completo (`all`) o un stage concreto; seleccionar un stage individual lo ejecuta directamente, sin esperar a sus dependencias. La suite completa corre en local con `npm run test:all`.
+
+### Publicación continua en GitHub Pages
+
+El flujo [pages.yml](.github/workflows/pages.yml) despliega el juego en [juliangt.github.io/aldamar2](https://juliangt.github.io/aldamar2/) en cada push a `main` (o manualmente desde *Actions*): valida datos, corre la suite completa, compila con `--base=/aldamar2/` y publica `dist/` directamente — nunca se commitean artefactos al repo. Si algún test falla, no se publica.
 
 ---
 
