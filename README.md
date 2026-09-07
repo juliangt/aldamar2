@@ -72,6 +72,7 @@ Cuatro aventuras independientes pero encadenadas por el **legado**: las decision
   - *Paseo por el huerto* — más vida y monedas, enemigos dóciles, pensada para sumergirse en la historia.
   - *El camino* — el equilibrio clásico con el que fue concebida la aventura.
   - *Yermos de Ceniza* — enemigos brutales, corrupción despiadada y penalización de curación para veteranos.
+- **Carteles de destino:** las salidas simples y bifurcaciones del mundo lucen carteles con el nombre corto del lugar de destino, derivado de los datos de cada aventura (`core/Carteles.js`).
 - **Vista adaptativa:** vertical (270×480) u horizontal (480×270) detectada de forma nativa; al girar el dispositivo todas las escenas se re-encuadran en caliente —el combate re-organiza héroes, enemigos y botones; los diálogos re-paginan su texto pendiente— sin recargar ni perder la partida.
 - **Ciclo de vida móvil y accesibilidad:** pausa automática al pasar a segundo plano (`visibilitychange`) que elimina el audio fantasma, botones táctiles con áreas de interacción ≥ 48 px e interfaz optimizada a 60 fps.
 
@@ -148,10 +149,14 @@ flowchart TD
 │   ├── main.js                # arranque, orientación, pausa y pantalla completa
 │   ├── config.js              # configuración de Phaser y registro de escenas
 │   ├── core/                  # núcleo puro, testeable sin Phaser
-│   ├── scenes/                # escenas Phaser
+│   ├── scenes/                # escenas Phaser y sus módulos por responsabilidad
+│   │   ├── mundo/             #   texturas procedurales, carteles, NPCs, pickups y enemigos
+│   │   ├── batalla/           #   botonera, log de combate y escenario (fondo + compañero)
+│   │   ├── navegacion.js      #   transiciones compartidas: precarga del héroe, salir del mundo
+│   │   └── secretos.js        #   lógica del secreto por aventura, compartida World/Battle
 │   ├── ui/                    # componentes de interfaz reutilizables
 │   └── assets/                # tipografía Press Start 2P
-├── tests/                     # Vitest: unit/, integration/ y suites por sistema
+├── tests/                     # Vitest: unit/, integration/, helpers/ y suites por sistema
 ├── e2e/                       # Playwright: flujo end-to-end en navegador real
 └── tools/                     # validador de datos y generadores de mapas/tileset
 ```
@@ -167,6 +172,8 @@ flowchart TD
 | `Legacy.js` | Legado persistente entre aventuras: juramento, grieta, héroes y finales alcanzados |
 | `Audio8.js` | Audio 8-bit sintetizado con WebAudio: jingle, set de SFX, pads ambientales por bioma, volumen y mute persistentes |
 | `Sprites.js` | Texturas dinámicas para los 11 héroes, NPCs y enemigos, y paletas de combate por bioma |
+| `Temas.js` | Partituras y mapeos musicales por bioma (dato puro); la síntesis WebAudio vive en `Audio8.js` |
+| `Carteles.js` | Lógica pura de los carteles de destino: nombre corto del lugar, anclaje en salidas y poste en bifurcaciones |
 | `Balance.js` | Multiplicadores por dificultad con redondeo entero (mín. 1) |
 | `Rng.js` | Generador aleatorio determinista por semilla (reproducibilidad de partidas y tests) |
 | `Texto.js` | Plantillas de texto con parámetros por héroe/trato |
@@ -177,7 +184,7 @@ flowchart TD
 
 ### Interfaz (`src/ui/`)
 
-`DialogBox` (diálogos con paginación y re-paginación al girar), `MenuTactil` (D-pad y botones ≥ 48 px), `PanelUI` (paneles y HUD), `InventarioUI`, `TiendaUI` y `SelectorOpciones` (decisiones narrativas).
+`DialogBox` (diálogos con paginación y re-paginación al girar), `MenuTactil` (D-pad y botones ≥ 48 px), `PanelUI` (paneles y HUD), `InventarioUI`, `TiendaUI`, `SelectorOpciones` (decisiones narrativas), `TecladoTactil` (teclado A–Z para nombrar al héroe sin teclado físico), `PausaUI` (menú de pausa y opciones de audio) y `LegadoUI` (panel del legado persistente). `tema.js` es la única fuente de verdad de la tipografía compartida.
 
 ### Persistencia (`localStorage`)
 
@@ -191,7 +198,7 @@ flowchart TD
 
 ## Calidad y pruebas
 
-- **283 tests en 32 archivos** (Vitest), todos en verde, organizados en tres niveles:
+- **332 tests en 36 archivos** (Vitest), todos en verde, organizados en tres niveles:
   - **Unitarios** (`tests/unit/`, `test:unit`): motores de combate, eventos, balance, RNG, texto, resolución, audio y componentes de UI.
   - **Integración** (`tests/integration/`, `test:integration`): campañas completas de principio a fin, integridad de las 4 aventuras, finales, jefes y requisitos, secretos, legado y el ciclo de vida de escenas.
   - **E2E** (`e2e/`, `test:e2e`): flujo real de jugador en navegador con Playwright + Chromium.
