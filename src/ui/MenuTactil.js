@@ -8,7 +8,7 @@ import { VISTA } from '../core/resolucion.js'
 import { audio8 } from '../core/Audio8.js'
 
 const RADIO = 24
-const FUENTE = '"Press Start 2P", monospace'
+import { FUENTE } from './tema.js'
 
 export class MenuTactil {
   constructor(escena, { onAccion, onMenu, onPausa } = {}) {

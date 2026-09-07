@@ -1,14 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-// Phaser real no carga en node (usa window); mock mínimo del módulo.
-vi.mock('phaser', () => ({
-  default: {
-    GameObjects: {
-      Text: class Text {},
-      Container: class Container {},
-    },
-  },
-}))
+// Phaser real no carga en node (usa window); stub compartido del módulo.
+vi.mock('phaser', async () => (await import('./helpers/phaser.js')).phaserStub)
 
 // Importa resolucion.js fresco con un tamaño de pantalla stubbeado.
 async function importarConPantalla(ancho, alto) {

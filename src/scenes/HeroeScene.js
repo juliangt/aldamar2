@@ -6,8 +6,8 @@ import Datos from '../core/Datos.js'
 import { partida } from '../core/partida.js'
 import { VISTA, aplicarRes, alRelayout, esVistaVertical } from '../core/resolucion.js'
 
-const FUENTE = '"Press Start 2P", monospace'
-const MAX_NOMBRE = 12
+import { FUENTE } from '../ui/tema.js'
+import TecladoTactil from '../ui/TecladoTactil.js'
 
 export class HeroeScene extends Phaser.Scene {
   constructor() {
@@ -223,141 +223,24 @@ export class HeroeScene extends Phaser.Scene {
   // --------------------------------------------------- Paso 2: Teclado táctil v1
 
   dibujarTecladoTactil() {
-    const { width, height } = VISTA
-    const dy = esVistaVertical() ? 80 : 0
     const { clave, pj } = this.heroeActual()
     const promptSabor = pj.texto_nombre || '¿Cómo te llamas, viajero? ({nombre}):'
-    const textoPrompt = promptSabor.replace('{nombre}', pj.nombre || clave)
 
-    // Velo de fondo modal
-    const fondo = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.96)
-
-    // Texto de sabor
-    const txtSabor = this.add
-      .text(width / 2, 20, textoPrompt, {
-        fontFamily: FUENTE,
-        fontSize: '7px',
-        color: '#9ad09a',
-        align: 'center',
-        wordWrap: { width: width - 40 },
-      })
-      .setOrigin(0.5, 0)
-
-    // Campo de texto del nombre
-    const campoY = 48 + dy
-    const campoFondo = this.add
-      .rectangle(width / 2, campoY, 200, 20, 0x1a1a24)
-      .setStrokeStyle(1, 0x8ab4f8, 0.9)
-    const txtCampo = this.add
-      .text(width / 2, campoY, `${this.nombreTemp}_`, {
-        fontFamily: FUENTE,
-        fontSize: '9px',
-        color: '#ffffff',
-      })
-      .setOrigin(0.5)
-
-    // Rejilla de teclas táctiles A–Z
-    const filasTeclas = [
-      ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'],
-      ['J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R'],
-      ['S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', ' '],
-    ]
-
-    const elementosTeclado = [fondo, txtSabor, campoFondo, txtCampo]
-    const teclaW = 20
-    const teclaH = 18
-    const sepX = 4
-    const sepY = 4
-    const startY = 80 + dy
-
-    filasTeclas.forEach((fila, fIndex) => {
-      const filaW = fila.length * teclaW + (fila.length - 1) * sepX
-      const startX = (width - filaW) / 2 + teclaW / 2
-      const y = startY + fIndex * (teclaH + sepY)
-
-      fila.forEach((letra, cIndex) => {
-        const x = startX + cIndex * (teclaW + sepX)
-        const teclaFondo = this.add
-          .rectangle(x, y, teclaW, teclaH, 0x222230)
-          .setStrokeStyle(1, 0x555566, 0.8)
-          .setInteractive({ useHandCursor: true })
-        const teclaTxt = this.add
-          .text(x, y, letra === ' ' ? '␣' : letra, {
-            fontFamily: FUENTE,
-            fontSize: '8px',
-            color: '#e8e8e8',
-          })
-          .setOrigin(0.5)
-
-        teclaFondo.on('pointerdown', () => {
-          if (this.nombreTemp.length < MAX_NOMBRE) {
-            this.nombreTemp += letra
-            txtCampo.setText(`${this.nombreTemp}_`)
-          }
-        })
-        elementosTeclado.push(teclaFondo, teclaTxt)
-      })
+    new TecladoTactil(this, {
+      contenedor: this.raiz,
+      prompt: promptSabor.replace('{nombre}', pj.nombre || clave),
+      nombreInicial: this.nombreTemp,
+      nombreCanonico: pj.nombre || clave,
+      onAceptar: (nombre) => {
+        this.nombresPersonalizados[clave] = nombre
+        this.modo = 'heroe'
+        this.renderizarVista()
+      },
+      onCancelar: () => {
+        this.modo = 'heroe'
+        this.renderizarVista()
+      },
     })
-
-    // Fila inferior: Borrar, Restaurar, Aceptar, Cancelar
-    const yAcciones = startY + 3 * (teclaH + sepY) + 6
-
-    const btnBorrar = this.add
-      .text(width / 2 - 90, yAcciones, '⌫ BORRAR', {
-        fontFamily: FUENTE,
-        fontSize: '7px',
-        color: '#e07a7a',
-      })
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true })
-      .on('pointerdown', () => {
-        this.nombreTemp = this.nombreTemp.slice(0, -1)
-        txtCampo.setText(`${this.nombreTemp}_`)
-      })
-
-    const btnDefecto = this.add
-      .text(width / 2, yAcciones, 'CANÓNICO', {
-        fontFamily: FUENTE,
-        fontSize: '7px',
-        color: '#aaaaaa',
-      })
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true })
-      .on('pointerdown', () => {
-        this.nombreTemp = pj.nombre || clave
-        txtCampo.setText(`${this.nombreTemp}_`)
-      })
-
-    const btnAceptar = this.add
-      .text(width / 2 + 90, yAcciones, '✔ ACEPTAR', {
-        fontFamily: FUENTE,
-        fontSize: '7px',
-        color: '#9ad09a',
-      })
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true })
-      .on('pointerdown', () => {
-        const finalNombre = this.nombreTemp.trim() || pj.nombre || clave
-        this.nombresPersonalizados[clave] = finalNombre
-        this.modo = 'heroe'
-        this.renderizarVista()
-      })
-
-    const btnCancelar = this.add
-      .text(width / 2, height - 16, 'VOLVER SIN CAMBIOS', {
-        fontFamily: FUENTE,
-        fontSize: '7px',
-        color: '#777777',
-      })
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true })
-      .on('pointerdown', () => {
-        this.modo = 'heroe'
-        this.renderizarVista()
-      })
-
-    elementosTeclado.push(btnBorrar, btnDefecto, btnAceptar, btnCancelar)
-    this.raiz.add(elementosTeclado)
   }
 
   // --------------------------------------------------- Paso 3: Selector de Dificultad

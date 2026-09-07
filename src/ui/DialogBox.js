@@ -10,7 +10,7 @@ import Texto from '../core/Texto.js'
 import { VISTA } from '../core/resolucion.js'
 import { audio8 } from '../core/Audio8.js'
 
-const FUENTE = '"Press Start 2P", monospace'
+import { FUENTE } from './tema.js'
 const CAR_POR_SG = 30
 const ALTO_CAJA = 84
 

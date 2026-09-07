@@ -1,13 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-vi.mock('phaser', () => ({
-  default: {
-    GameObjects: {
-      Text: class Text {},
-      Container: class Container {},
-    },
-  },
-}))
+vi.mock('phaser', async () => (await import('../helpers/phaser.js')).phaserStub)
 
 vi.mock('../../src/core/Audio8.js', () => ({
   audio8: {
@@ -19,39 +12,7 @@ import InventarioUI from '../../src/ui/InventarioUI.js'
 import { partida } from '../../src/core/partida.js'
 import Datos from '../../src/core/Datos.js'
 import { audio8 } from '../../src/core/Audio8.js'
-
-function crearMockEscena() {
-  const crearElemento = (props = {}) => ({
-    setPosition: vi.fn().mockReturnThis(),
-    setSize: vi.fn().mockReturnThis(),
-    setDepth: vi.fn().mockReturnThis(),
-    setVisible: vi.fn().mockReturnThis(),
-    setStrokeStyle: vi.fn().mockReturnThis(),
-    setOrigin: vi.fn().mockReturnThis(),
-    setText: vi.fn().mockReturnThis(),
-    setColor: vi.fn().mockReturnThis(),
-    setInteractive: vi.fn().mockReturnThis(),
-    on: vi.fn().mockReturnThis(),
-    destroy: vi.fn(),
-    input: { enabled: true, hitArea: { setSize: vi.fn() } },
-    list: [],
-    add: vi.fn(function (items) {
-      if (Array.isArray(items)) this.list.push(...items)
-      else this.list.push(items)
-      return this
-    }),
-    ...props,
-  })
-
-  return {
-    add: {
-      container: vi.fn(() => crearElemento()),
-      zone: vi.fn(() => crearElemento()),
-      rectangle: vi.fn(() => crearElemento()),
-      text: vi.fn(() => crearElemento()),
-    },
-  }
-}
+import { crearMockEscena } from '../helpers/phaser.js'
 
 describe('InventarioUI Unit Tests', () => {
   let escena

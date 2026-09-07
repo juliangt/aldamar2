@@ -2,6 +2,10 @@
 // Tiled del lugar activo, colisiones, jugador con cámara, transiciones
 // entre lugares validando `requiere`. La interfaz (HUD, táctil, pausa)
 // vive en UiScene, lanzada en paralelo con cámara a zoom 1.
+// La construcción del mundo delega en los módulos de scenes/mundo/
+// (texturas, carteles, npcs, pickups, enemigos) y los secretos en
+// scenes/secretos.js; aquí queda el ciclo de vida, el jugador, las
+// salidas y el flujo de combate/eventos.
 
 import Phaser from 'phaser'
 import Datos from '../core/Datos.js'
@@ -9,15 +13,19 @@ import EventEngine from '../core/EventEngine.js'
 import ValidadorMapa from '../core/ValidadorMapa.js'
 import { aplicarRes } from '../core/resolucion.js'
 import { partida } from '../core/partida.js'
-import { extraerReclutar, extraerComprar } from '../core/Texto.js'
-import { nombreCorto, posicionCartel, posicionPoste, ordenarTablas, flechaDe } from '../core/Carteles.js'
-import heroePng from '../assets/heroe.png'
-import { crearTexturaHeroe, crearTexturaEnemigo, crearTexturaNpc } from '../core/Sprites.js'
+import { crearTexturaHeroe } from '../core/Sprites.js'
 import { audio8, obtenerBioma } from '../core/Audio8.js'
+import { secretoEnLugar, resolverTextoSecreto } from './secretos.js'
+import { crearTexturasCarteles, crearTexturasFx, texturaSecreto } from './mundo/texturas.js'
+import { crearCarteles } from './mundo/carteles.js'
+import { crearNpcs, hablar as hablarNpc, ctxDialogo as ctxDialogoNpc } from './mundo/npcs.js'
+import { crearPickups, recoger as recogerPickup } from './mundo/pickups.js'
+import { crearEnemigos, puedeIniciarCombate, enemigosDeBatalla } from './mundo/enemigos.js'
+import { cargarHeroe, salirDelMundo } from './navegacion.js'
+import { FUENTE } from '../ui/tema.js'
 
 const VELOCIDAD = 110
 const LADO_OPUESTO = { N: 'S', S: 'N', E: 'O', O: 'E' }
-const FUENTE = '"Press Start 2P", monospace'
 const RADIO_INTERACCION = 28
 
 export class WorldScene extends Phaser.Scene {
@@ -41,11 +49,7 @@ export class WorldScene extends Phaser.Scene {
     )
     if (!this.textures.exists('tiny_dungeon'))
       this.load.image('tiny_dungeon', 'tilesets/tiny_dungeon.png')
-    if (!this.textures.exists('heroe'))
-      this.load.spritesheet('heroe', heroePng, {
-        frameWidth: 16,
-        frameHeight: 16,
-      })
+    cargarHeroe(this)
   }
 
   create() {
@@ -65,16 +69,16 @@ export class WorldScene extends Phaser.Scene {
     this.physics.world.setBounds(0, 0, mapa.widthInPixels, mapa.heightInPixels)
 
     this.crearJugador(mapa)
-    this.crearTexturasFx()
-    this.crearTexturasCarteles()
+    crearTexturasFx(this)
+    crearTexturasCarteles(this)
     this.crearSalidas(mapa)
-    this.crearCarteles(mapa)
-    this.crearNpcs(mapa, lugar)
-    this.crearPickups(mapa, lugar)
-    this.crearEnemigos(mapa, lugar)
+    crearCarteles(this, mapa, this.datosSalidas, this.capaObstaculos)
+    crearNpcs(this, mapa, lugar)
+    crearPickups(this, mapa)
+    crearEnemigos(this, mapa, lugar)
     this.crearGatillos(mapa, lugar)
     this.crearDescanso(mapa, lugar)
-    this.crearCuervoExterior(mapa)
+    this.crearSecretoExterior(mapa)
     this.validarObjetos(mapa, lugar)
 
     const cam = this.cameras.main
@@ -233,163 +237,6 @@ export class WorldScene extends Phaser.Scene {
     )
   }
 
-  // ------------------------------------------------------ carteles de destino
-
-  // Carteles con el destino de cada salida: en bifurcaciones (3+) un poste
-  // central con una tabla por camino; si no, un cartel junto a cada borde.
-  // Decorativos (sin cuerpo físico), como los marcadores de eventos.
-  crearCarteles(mapa) {
-    const salidas = (this.datosSalidas || []).filter((s) => s.props.hacia)
-    if (!salidas.length) return
-    const mapaPx = { width: mapa.widthInPixels, height: mapa.heightInPixels }
-    if (salidas.length >= 3) {
-      const esLibre = (x, y) => {
-        const tile = this.capaObstaculos.getTileAtWorldXY(x, y)
-        return !tile || !tile.properties?.colision
-      }
-      this.crearPosteBifurcacion(salidas, mapaPx, esLibre)
-    } else {
-      for (const s of salidas) this.crearCartelSimple(s, mapaPx)
-    }
-  }
-
-  crearCartelSimple(s, mapaPx) {
-    const { x, y } = posicionCartel(s, mapaPx)
-    const flecha = flechaDe(s.dir)
-    this.add.image(x, y, 'cartel:poste').setOrigin(0.5, 1).setDepth(y)
-    const dx = flecha === 'izquierda' ? -6 : flecha === 'derecha' ? 6 : 0
-    this.pintarTabla(x + dx, y - 12, flecha, s.props.hacia, y)
-  }
-
-  crearPosteBifurcacion(salidas, mapaPx, esLibre) {
-    const filas = ordenarTablas(salidas)
-    const n = filas.length
-    const alto = 14 * n + 8
-    const clave = this.texturaCanvas(`cartel:poste:${n}`, 8, alto, (g) =>
-      this.dibujarPosteCartel(g, alto)
-    )
-    const { x, y } = posicionPoste(mapaPx, esLibre)
-    this.add.image(x, y, clave).setOrigin(0.5, 1).setDepth(y)
-    filas.forEach((s, i) => {
-      const flecha = flechaDe(s.dir)
-      const dx = flecha === 'izquierda' ? -10 : flecha === 'derecha' ? 10 : 0
-      this.pintarTabla(x + dx, y - alto + 10 + i * 14, flecha, s.props.hacia, y)
-    })
-  }
-
-  // Tabla con el nombre corto del destino; el candado (✕ gris) y el color
-  // apagado avisan de puertas con `requiere` aún sin cumplir.
-  pintarTabla(x, y, flecha, hacia, prof) {
-    const destino = Datos.lugar(this.aventura, hacia)
-    const cerrada = this.salidaBloqueada(destino)
-    const forma = flecha === 'arriba' || flecha === 'abajo' ? 'plana' : flecha
-    const tex = `cartel:tabla:${forma}${cerrada ? ':cerrada' : ''}`
-    this.add.image(x, y, tex).setDepth(prof)
-    // Los triángulos de las tablas planas (N/S) se desplazan a un lado para
-    // no perderse contra la columna del poste, del mismo color.
-    if (flecha === 'arriba' || flecha === 'abajo')
-      this.add
-        .image(x - 12, y + (flecha === 'arriba' ? -8 : 8), `cartel:tri:${flecha}`)
-        .setDepth(prof)
-    if (cerrada)
-      this.add
-        .image(x + (forma === 'plana' ? 12 : 0), y + (flecha === 'arriba' ? 8 : -8), 'cartel:cruz')
-        .setDepth(prof)
-    // El texto se centra sobre el cuerpo del listón, no sobre la textura
-    // completa (la punta desplaza el centro óptico).
-    const dxTexto = forma === 'derecha' ? -4 : forma === 'izquierda' ? 4 : 0
-    this.add
-      .text(x + dxTexto, y + 1, nombreCorto(destino) || hacia, {
-        fontFamily: FUENTE,
-        fontSize: '6px',
-        color: cerrada ? '#8a8a8a' : '#e8d8a8',
-      })
-      .setOrigin(0.5)
-      .setDepth(prof + 1)
-  }
-
-  salidaBloqueada(destino) {
-    if (!destino?.requiere) return false
-    return (
-      !partida.inventario.includes(destino.requiere) && !partida.tieneFlag(destino.requiere)
-    )
-  }
-
-  crearTexturasCarteles() {
-    this.texturaCanvas('cartel:poste', 8, 16, (g) => this.dibujarPosteCartel(g, 16))
-    for (const forma of ['izquierda', 'derecha', 'plana']) {
-      const ancho = forma === 'plana' ? 58 : 66
-      this.texturaCanvas(`cartel:tabla:${forma}`, ancho, 12, (g) =>
-        this.dibujarTablaCartel(g, forma, false)
-      )
-      this.texturaCanvas(`cartel:tabla:${forma}:cerrada`, ancho, 12, (g) =>
-        this.dibujarTablaCartel(g, forma, true)
-      )
-    }
-    this.texturaCanvas('cartel:tri:arriba', 7, 5, (g) => {
-      g.fillStyle = '#3a2410'
-      g.fillRect(3, 0, 1, 1)
-      g.fillRect(2, 1, 3, 1)
-      g.fillRect(1, 2, 5, 1)
-      g.fillRect(0, 3, 7, 2)
-    })
-    this.texturaCanvas('cartel:tri:abajo', 7, 5, (g) => {
-      g.fillStyle = '#3a2410'
-      g.fillRect(0, 0, 7, 2)
-      g.fillRect(1, 2, 5, 1)
-      g.fillRect(2, 3, 3, 1)
-      g.fillRect(3, 4, 1, 1)
-    })
-    this.texturaCanvas('cartel:cruz', 7, 7, (g) => {
-      g.fillStyle = '#9a9a9a'
-      for (let i = 0; i < 7; i++) {
-        g.fillRect(i, i, 1, 1)
-        g.fillRect(6 - i, i, 1, 1)
-      }
-    })
-  }
-
-  dibujarPosteCartel(g, alto) {
-    g.fillStyle = '#3a2410'
-    g.fillRect(0, 0, 8, alto)
-    g.fillStyle = '#8a5a2a'
-    g.fillRect(1, 1, 6, alto - 2)
-    g.fillStyle = '#b07840'
-    g.fillRect(2, 1, 2, alto - 2)
-    g.fillStyle = '#3a2410'
-    g.fillRect(1, 1, 6, 1)
-    g.fillRect(1, alto - 3, 6, 1)
-  }
-
-  // Listón de madera con punta lateral escalonada; la variante cerrada usa
-  // madera apagada. `izquierda` reutiliza el dibujo espejado.
-  dibujarTablaCartel(g, forma, cerrada) {
-    if (forma === 'izquierda') {
-      g.translate(66, 0)
-      g.scale(-1, 1)
-    }
-    const punta = forma !== 'plana'
-    g.fillStyle = '#3a2410'
-    g.fillRect(0, 0, 58, 12)
-    if (punta) {
-      g.fillRect(58, 1, 3, 10)
-      g.fillRect(61, 2, 3, 8)
-      g.fillRect(64, 3, 2, 6)
-    }
-    g.fillStyle = cerrada ? '#6a5646' : '#b07840'
-    g.fillRect(1, 1, 56, 10)
-    if (punta) {
-      g.fillRect(58, 2, 2, 8)
-      g.fillRect(61, 3, 2, 6)
-      g.fillRect(64, 4, 1, 4)
-    }
-    g.fillStyle = cerrada ? '#7c6a58' : '#c89058'
-    g.fillRect(1, 1, 56, 2)
-    g.fillStyle = '#8a6034'
-    g.fillRect(10, 5, 6, 1)
-    g.fillRect(32, 8, 8, 1)
-  }
-
   // ------------------------------------------------------------------ pausa
 
   alternarPausa() {
@@ -397,200 +244,22 @@ export class WorldScene extends Phaser.Scene {
     this.ui && this.ui.setPausa(this.pausado)
   }
 
-  // ------------------------------------------------------- Fase B: mundo vivo
-
-  // Texturas pixel generadas (2 frames): NPC con paleta propia por id y
-  // brillos de objetos/monedas. Evita depender de sprites aún inexistentes.
-  texturaCanvas(clave, ancho, alto, dibujar) {
-    if (this.textures.exists(clave)) return clave
-    const cv = document.createElement('canvas')
-    cv.width = ancho
-    cv.height = alto
-    dibujar(cv.getContext('2d'))
-    this.textures.addCanvas(clave, cv)
-    return clave
-  }
-
-  texturaNpc(id) {
-    return crearTexturaNpc(this, id)
-  }
-
-  crearTexturasFx() {
-    this.texturaCanvas('fx:moneda', 16, 8, (g) => {
-      for (const [f, c, brillo] of [
-        [0, '#b8922e', '#e0c04a'],
-        [1, '#e0c04a', '#fff2b0'],
-      ]) {
-        g.fillStyle = c
-        g.beginPath()
-        g.arc(f * 8 + 4, 4, 3, 0, Math.PI * 2)
-        g.fill()
-        g.fillStyle = brillo
-        g.fillRect(f * 8 + 3, 2, 1, 2)
-      }
-    })
-    this.texturaCanvas('fx:objeto', 16, 8, (g) => {
-      for (const f of [0, 1]) {
-        g.fillStyle = '#8a5a2a'
-        g.fillRect(f * 8 + 2, 2, 5, 5)
-        g.fillStyle = '#b07840'
-        g.fillRect(f * 8 + 2, 2, 5, 2)
-        if (f) {
-          g.fillStyle = '#ffffff'
-          g.fillRect(f * 8 + 6, 1, 1, 1)
-        }
-      }
-    })
-  }
-
-  crearNpcs(mapa, lugar) {
-    this.npcs = []
-    const capa = mapa.getObjectLayer('npcs')
-    if (!capa) return
-    for (const o of capa.objects) {
-      const npcId = o.name
-      const clave = lugar.npcs?.[npcId] || npcId // «lugar.npcs» → clave en `dialogos`
-      const tex = this.texturaNpc(npcId)
-      const sprite = this.add.sprite(o.x, o.y, tex, 0)
-      sprite.setDepth(o.y)
-      const anim = `npc:${npcId}:idle`
-      if (!this.anims.exists(anim))
-        this.anims.create({
-          key: anim,
-          frames: [
-            { key: tex, frame: 0 },
-            { key: tex, frame: 1 },
-          ],
-          frameRate: 2,
-          repeat: -1,
-        })
-      sprite.anims.play(anim)
-
-      const burbuja = this.add
-        .text(o.x, o.y - 20, '!', { fontFamily: FUENTE, fontSize: '8px', color: '#e0c04a' })
-        .setOrigin(0.5)
-        .setDepth(o.y + 1)
-        .setVisible(false)
-      this.tweens.add({ targets: burbuja, y: o.y - 24, duration: 500, yoyo: true, repeat: -1 })
-
-      const npc = { id: npcId, clave, sprite, burbuja }
-      // Tap directo sobre el NPC, además del botón de acción.
-      sprite.setInteractive().on('pointerdown', () => this.hablar(npc))
-      this.npcs.push(npc)
-    }
-  }
-
-  crearPickups(mapa, lugar) {
-    this.pickups = []
-    for (const [nombreCapa, tipo] of [['objetos', 'objeto'], ['monedas', 'moneda']]) {
-      const capa = mapa.getObjectLayer(nombreCapa)
-      if (!capa) continue
-      capa.objects.forEach((o, i) => {
-        const claveRecogido = `${this.lugarId}:${nombreCapa}:${o.name || 'obj'}:${i}`
-        if (partida.recogidos[claveRecogido]) return // una vez por partida
-        const sprite = this.add.sprite(o.x, o.y, tipo === 'moneda' ? 'fx:moneda' : 'fx:objeto', 0)
-        sprite.setDepth(o.y)
-        this.physics.add.existing(sprite, true)
-        this.tweens.add({ targets: sprite, scale: { from: 0.8, to: 1 }, duration: 600, yoyo: true, repeat: -1 })
-        const pickup = {
-          tipo,
-          id: o.name,
-          valor: this.leerProps(o).valor || 1,
-          sprite,
-          claveRecogido,
-        }
-        this.physics.add.overlap(this.jugador, sprite, () => this.recoger(pickup))
-        this.pickups.push(pickup)
-      })
-    }
-  }
-
-  recoger(pickup) {
-    if (pickup.recogido || this.ui?.modal) return
-    pickup.recogido = true
-    audio8.sfx('moneda')
-    partida.recogidos[pickup.claveRecogido] = true
-    if (pickup.tipo === 'moneda') {
-      partida.monedas += pickup.valor
-      this.ui.toast(`(+${pickup.valor} monedas)`)
-    } else {
-      partida.inventario.push(pickup.id)
-      this.ui.toast(`(Recibes: ${Datos.item(this.aventura, pickup.id)?.nombre || pickup.id}.)`)
-    }
-    partida.guardar()
-    this.ui.refrescarHud()
-    pickup.sprite.destroy()
-    this.pickups = this.pickups.filter((p) => p !== pickup)
-  }
-
-  ctxDialogo() {
-    const pj = Datos.aventura(this.aventura).personajes[partida.heroe] || {}
-    return { trato: pj.trato, nombre: pj.nombre }
-  }
-
-  // ------------------------------------------------------ Fase D: combate
-
-  // Textura de enemigo en el mundo (misma clave que usa BattleScene).
-  texturaEnemigo(id) {
-    return crearTexturaEnemigo(this, id)
-  }
-
-  // Los enemigos del lugar son un grupo: tocar cualquiera inicia un combate
-  // contra todos los vivos (trasgo ×2 en minas = multi-enemigo).
-  crearEnemigos(mapa, lugar) {
-    this.enemigosMapa = []
-    const capa = mapa.getObjectLayer('enemigos')
-    if (!capa) return
-    for (const o of capa.objects) {
-      const id = o.name
-      if (!Datos.enemigo(this.aventura, id)) continue
-      const dato = Datos.enemigo(this.aventura, id)
-      const escala = dato.sin_huida || (dato.fases && dato.fases.length) ? 1.5 : 1
-      const sprite = this.add.sprite(o.x, o.y, this.texturaEnemigo(id)).setOrigin(0.5, 1)
-      sprite.setDepth(o.y)
-      sprite.setScale(escala)
-      this.tweens.add({
-        targets: sprite,
-        x: o.x + 3,
-        duration: 900,
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.inOut',
-      })
-      this.physics.add.existing(sprite, true)
-      sprite.body.setSize(12, 10).setOffset(2, 6)
-      const enemigo = { id, sprite, x: o.x, y: o.y }
-      this.physics.add.overlap(this.jugador, sprite, () => this.tocarEnemigo(enemigo))
-      this.enemigosMapa.push(enemigo)
-    }
-  }
+  // ------------------------------------------------------- Fase D: combate
 
   tocarEnemigo(enemigo) {
     const ahora = this.game?.loop?.time || Date.now()
-    const vivos = (this.enemigosMapa || []).filter((e) => !e.derrotado)
-    if (!vivos.length) return
-
-    if (
-      this.transicionando ||
-      this.pausado ||
-      this.ui?.modal ||
-      this.graciaHuida > ahora ||
-      this.scene.isActive('Battle')
-    )
-      return
+    if (!puedeIniciarCombate(this, ahora)) return
     this.transicionando = true
 
-    // En aguja_cima el combate es estrictamente secuencial: eco_voz → capitan_rehecho → morvath
-    const esSecuencial = this.lugarId === 'aguja_cima'
-    const enemigosBatalla = esSecuencial ? [vivos[0].id] : vivos.map((e) => e.id)
-    this.enemigoEnCurso = esSecuencial ? vivos[0] : null
+    const { ids, enCurso } = enemigosDeBatalla(this)
+    this.enemigoEnCurso = enCurso
 
     audio8.detenerAmbiente(true)
 
     this.scene.sleep('Ui')
     this.scene.sleep('World')
     this.scene.launch('Battle', {
-      enemigos: enemigosBatalla,
+      enemigos: ids,
       origen: 'World',
       lugar: this.lugarId,
     })
@@ -663,16 +332,10 @@ export class WorldScene extends Phaser.Scene {
       batalla: (enemigos) => this.iniciarCombateForzado(enemigos),
       toast: (msg) => this.ui?.toast(msg),
       refrescar: () => this.ui?.refrescarHud(),
-      caida: () => {
-        this.scene.stop('Ui')
-        this.scene.stop('World')
-        this.scene.start('Epilogo', { tipo: 'caida' })
-      },
+      caida: () => salirDelMundo(this, 'Epilogo', { tipo: 'caida' }),
       final: (elegida, evento) => {
         const res = EventEngine.resolverFinal(partida, evento, elegida)
-        this.scene.stop('Ui')
-        this.scene.stop('World')
-        this.scene.start('Epilogo', res)
+        salirDelMundo(this, 'Epilogo', res)
       },
     }
   }
@@ -785,77 +448,32 @@ export class WorldScene extends Phaser.Scene {
     })
   }
 
-  // Resuelve la clave de `dialogos`: array (secuencia por visita, la última
-  // se repite) o cadena única. Contador persistente en `npcVistos`.
-  async hablar(npc) {
-    if (this.transicionando || this.pausado || this.ui?.modal) return
+  // NPC: delegación fina sobre scenes/mundo/npcs.js (la construcción pasa
+  // escena.hablar como callback del tap).
+  hablar(npc) {
+    return hablarNpc(this, npc)
+  }
 
-    // Si el NPC tiene una decisión asociada pendiente (p. ej. Dorotea en Ríoclaro)
-    if (npc.id === 'dorotea' && this.lugar.eventos?.includes('encargo')) {
-      const ev = Datos.evento(this.aventura, 'encargo')
-      if (ev && !EventEngine.consumida(partida, ev, 'encargo', true)) {
-        await EventEngine.gatillo(partida, 'encargo', this.uiAdaptador, this.ctxDialogo())
-        return
-      }
-    }
+  ctxDialogo() {
+    return ctxDialogoNpc(this)
+  }
 
-    const dato = Datos.dialogo(this.aventura, npc.clave)
-    if (!dato) return
-    const lista = Array.isArray(dato) ? dato : [dato]
-    const n = partida.npcVistos[npc.clave] || 0
-    const bruto = lista[Math.min(n, lista.length - 1)]
-    const { limpio: sinReclutar, reclutaId } = extraerReclutar(bruto)
-    const { limpio, esTienda } = extraerComprar(sinReclutar)
-
-    await this.ui.decir(limpio, this.ctxDialogo())
-
-    partida.npcVistos[npc.clave] = n + 1
-    partida.guardar()
-
-    // Tendero: la línea «Escribe comprar…» ya se ocultó; tras el saludo se
-    // abre la tienda del lugar (si el lugar la tiene).
-    if (esTienda && this.lugar.tienda) this.ui.abrirTienda(this.lugarId)
-
-    if (reclutaId && !partida.companeros.includes(reclutaId)) {
-      const eleccion = await this.ui.pregunta(['Reclutar', 'Seguir solo'])
-      if (eleccion === 0) {
-        partida.companeros.push(reclutaId)
-        partida.guardar()
-        this.ui.toast(`${Datos.recluta(this.aventura, reclutaId)?.nombre || reclutaId} se une al grupo`)
-      }
-    }
+  // Pickup: delegación fina sobre scenes/mundo/pickups.js.
+  recoger(pickup) {
+    return recogerPickup(this, pickup)
   }
 
   // ---------------------------------------------------- Secretos (Fase G)
-  crearCuervoExterior(mapa) {
-    return this.crearSecretoExterior(mapa)
-  }
-
   crearSecretoExterior(mapa) {
     this.cuervo = null
-    const secretos = Datos.aventura(this.aventura)?.secretos
-    if (!secretos) return
-    const [tipoSecreto, sec] = Object.entries(secretos)[0] || []
-    if (!sec) return
-
-    const lugaresPorSecreto = {
-      cuervo: ['vegaverde', 'molino', 'puente', 'bosque', 'cienagas', 'yerma'],
-      abejas: ['colmenar', 'ejido', 'lavadero'],
-      gaviota: ['vado', 'calzada', 'faro', 'esteros', 'cauce', 'salinas'],
-      campanilla: ['refugio', 'aguja_pies', 'aguja_cima'],
-    }
-
-    const permitidos = lugaresPorSecreto[tipoSecreto] || []
-    if (!permitidos.includes(this.lugarId)) return
-
-    if (tipoSecreto === 'campanilla' && !partida.tieneFlag('campanilla') && !partida.inventario.includes('campanilla')) {
-      return
-    }
+    const activo = secretoEnLugar(partida, this.aventura, this.lugarId)
+    if (!activo) return
+    const { tipo: tipoSecreto, sec } = activo
 
     const x = Math.min(mapa.widthInPixels - 48, Math.max(48, Math.round(mapa.widthInPixels / 2 + 32)))
     const y = 48
 
-    const tex = this.texturaSecreto(tipoSecreto)
+    const tex = texturaSecreto(this, tipoSecreto)
     const sprite = this.add
       .sprite(x, y, tex)
       .setDepth(25)
@@ -875,73 +493,11 @@ export class WorldScene extends Phaser.Scene {
     sprite.on('pointerdown', () => this.interactuarSecreto())
   }
 
-  texturaSecreto(tipo) {
-    const clave = `secreto:${tipo}`
-    if (this.textures.exists(clave)) return clave
-    return this.texturaCanvas(clave, 16, 16, (g) => {
-      if (tipo === 'cuervo') {
-        g.fillStyle = '#181822'
-        g.fillRect(5, 5, 6, 6)
-        g.fillRect(7, 2, 4, 4)
-        g.fillRect(11, 4, 3, 2)
-        g.fillRect(3, 7, 4, 4)
-        g.fillRect(6, 11, 2, 3)
-        g.fillStyle = partida.semilla === 42 ? '#ffffff' : '#e0c04a'
-        g.fillRect(9, 3, 1, 1)
-      } else if (tipo === 'abejas') {
-        g.fillStyle = partida.semilla === 20 ? '#ffe080' : '#d8a020'
-        g.fillRect(5, 6, 6, 5)
-        g.fillStyle = '#111111'
-        g.fillRect(7, 6, 2, 5)
-        g.fillStyle = '#e8f0ff'
-        g.fillRect(4, 3, 4, 3)
-        g.fillRect(8, 3, 4, 3)
-      } else if (tipo === 'gaviota') {
-        g.fillStyle = '#f0f4f8'
-        g.fillRect(4, 5, 8, 5)
-        g.fillRect(8, 2, 4, 4)
-        g.fillStyle = '#708090'
-        g.fillRect(2, 7, 5, 3)
-        g.fillStyle = '#e0a020'
-        g.fillRect(12, 4, 3, 2)
-        g.fillStyle = partida.semilla === 40 ? '#00e0ff' : '#111111'
-        g.fillRect(10, 3, 1, 1)
-      } else if (tipo === 'campanilla') {
-        g.fillStyle = partida.semilla === 100 ? '#f0d060' : '#a87830'
-        g.fillRect(6, 4, 4, 3)
-        g.fillRect(4, 7, 8, 6)
-        g.fillRect(3, 12, 10, 2)
-        g.fillStyle = '#4a2a10'
-        g.fillRect(7, 13, 2, 2)
-      }
-    })
-  }
-
-  texturaCuervo() {
-    return this.texturaSecreto('cuervo')
-  }
-
   async interactuarSecreto() {
     if (!this.cuervo) return
     audio8.sfx('secreto')
-    const { tipo, sec } = this.cuervo
-    let texto = ''
-    const semKey = String(partida.semilla)
-    if (sec.semillas?.[semKey]) {
-      texto = sec.semillas[semKey]
-    } else {
-      partida.npcVistos = partida.npcVistos || {}
-      const keyVisto = `secreto:${tipo}`
-      const idx = (partida.npcVistos[keyVisto] || 0) % sec.textos.length
-      texto = sec.textos[idx]
-      partida.npcVistos[keyVisto] = idx + 1
-      partida.guardar()
-    }
+    const texto = resolverTextoSecreto(partida, this.cuervo.tipo, this.cuervo.sec)
     await this.ui.decir(texto)
-  }
-
-  interactuarCuervo() {
-    return this.interactuarSecreto()
   }
 
   // Entrada al lugar: descripción (primera visita) + eventos de entrada (narrar,
@@ -1003,7 +559,7 @@ export class WorldScene extends Phaser.Scene {
     const it = this.interactuable
     if (!it || this.transicionando || this.pausado || this.ui?.modal) return
     if (it.tipo === 'npc') this.hablar(it.ref)
-    else if (it.tipo === 'cuervo') this.interactuarCuervo()
+    else if (it.tipo === 'cuervo') this.interactuarSecreto()
     else if (it.tipo === 'gatillo') this.activarGatillo(it.ref)
     else if (it.tipo === 'objeto') this.recoger(it.ref)
     else if (it.tipo === 'descanso') this.descansar()

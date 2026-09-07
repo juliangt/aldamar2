@@ -6,7 +6,7 @@
 
 import { VISTA } from '../core/resolucion.js'
 
-const FUENTE = '"Press Start 2P", monospace'
+import { FUENTE } from './tema.js'
 
 export class PanelUI {
   constructor(escena, { titulo, ancho = 440, alto = 230 } = {}) {

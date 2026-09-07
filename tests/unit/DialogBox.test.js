@@ -1,13 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-vi.mock('phaser', () => ({
-  default: {
-    GameObjects: {
-      Text: class Text {},
-      Container: class Container {},
-    },
-  },
-}))
+vi.mock('phaser', async () => (await import('../helpers/phaser.js')).phaserStub)
 
 vi.mock('../../src/core/Audio8.js', () => ({
   audio8: {
@@ -17,64 +10,7 @@ vi.mock('../../src/core/Audio8.js', () => ({
 
 import DialogBox from '../../src/ui/DialogBox.js'
 import { audio8 } from '../../src/core/Audio8.js'
-
-function crearMockEscena() {
-  const keyboardListeners = new Map()
-  let timerCb = null
-
-  const crearElemento = (props = {}) => ({
-    setPosition: vi.fn().mockReturnThis(),
-    setSize: vi.fn().mockReturnThis(),
-    setDepth: vi.fn().mockReturnThis(),
-    setVisible: vi.fn().mockReturnThis(),
-    setStrokeStyle: vi.fn().mockReturnThis(),
-    setOrigin: vi.fn().mockReturnThis(),
-    setText: vi.fn().mockReturnThis(),
-    setColor: vi.fn().mockReturnThis(),
-    setInteractive: vi.fn().mockReturnThis(),
-    on: vi.fn().mockReturnThis(),
-    destroy: vi.fn(),
-    input: { enabled: true, hitArea: { setSize: vi.fn() } },
-    width: 16,
-    height: 8,
-    list: [],
-    add: vi.fn(function (items) {
-      if (Array.isArray(items)) this.list.push(...items)
-      else this.list.push(items)
-      return this
-    }),
-    ...props,
-  })
-
-  return {
-    add: {
-      container: vi.fn(() => crearElemento()),
-      zone: vi.fn(() => crearElemento()),
-      rectangle: vi.fn(() => crearElemento()),
-      text: vi.fn(() => crearElemento()),
-    },
-    input: {
-      keyboard: {
-        on: vi.fn((ev, cb) => keyboardListeners.set(ev, cb)),
-        trigger: (ev) => keyboardListeners.get(ev)?.(),
-      },
-    },
-    events: {
-      on: vi.fn(),
-      emit: vi.fn(),
-    },
-    time: {
-      addEvent: vi.fn((opts) => {
-        timerCb = opts.callback
-        return { remove: vi.fn() }
-      }),
-      tick: () => timerCb?.(),
-    },
-    tweens: {
-      add: vi.fn(() => ({ remove: vi.fn() })),
-    },
-  }
-}
+import { crearMockEscena } from '../helpers/phaser.js'
 
 describe('DialogBox Unit Tests', () => {
   let escena

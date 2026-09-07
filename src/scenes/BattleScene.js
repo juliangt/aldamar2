@@ -10,14 +10,16 @@ import Datos from '../core/Datos.js'
 import { partida } from '../core/partida.js'
 import Combate from '../core/Combate.js'
 import Texto from '../core/Texto.js'
-import heroePng from '../assets/heroe.png'
 import { VISTA, aplicarRes, alRelayout, esVistaVertical } from '../core/resolucion.js'
-import { BIOMAS_TONOS, crearTexturaHeroe, crearTexturaEnemigo } from '../core/Sprites.js'
+import { crearTexturaHeroe, crearTexturaEnemigo } from '../core/Sprites.js'
 import { audio8 } from '../core/Audio8.js'
+import { secretoActivo, secretoDisponible } from './secretos.js'
+import LogBatalla from './batalla/LogBatalla.js'
+import Botonera from './batalla/Botonera.js'
+import { dibujarFondo as dibujarFondoBioma, texturaSpriteCompanero } from './batalla/escenario.js'
+import { cargarHeroe, salirDelMundo } from './navegacion.js'
 
-const FUENTE = '"Press Start 2P", monospace'
-const PALETA_ENEMIGO = { lobo: '#5a5a6a', espectro: '#8a9ab0', trasgo: '#7a8a4a', lobero: '#6a5a4a', capitan: '#9a6a5a', custodio: '#b0c0c8' }
-const MS_LOG = 750 // auto-avance del log (base; crece con la longitud)
+import { FUENTE } from '../ui/tema.js'
 
 export class BattleScene extends Phaser.Scene {
   constructor() {
@@ -30,8 +32,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   preload() {
-    if (!this.textures.exists('heroe'))
-      this.load.spritesheet('heroe', heroePng, { frameWidth: 16, frameHeight: 16 })
+    cargarHeroe(this)
   }
 
   create() {
@@ -48,7 +49,6 @@ export class BattleScene extends Phaser.Scene {
     this.crearLog()
     this.crearBotones()
     this.crearSecretoBatalla()
-
     this.input.keyboard.on('keydown-SPACE', () => this.acelerarLog())
     this.input.keyboard.on('keydown-ENTER', () => this.acelerarLog())
 
@@ -117,14 +117,9 @@ export class BattleScene extends Phaser.Scene {
   }
 
   crearSecretoBatalla() {
-    const secretos = Datos.aventura(this.combate.aventura)?.secretos
-    if (!secretos) return
-    const [clave, sec] = Object.entries(secretos)[0] || []
-    if (!sec || !sec.texto_combate) return
-
-    if (clave === 'campanilla' && !partida.tieneFlag('campanilla') && !partida.inventario.includes('campanilla')) {
-      return
-    }
+    const activo = secretoActivo(this.combate.aventura)
+    if (!activo || !activo.sec.texto_combate) return
+    if (!secretoDisponible(partida, activo.tipo)) return
 
     const iconos = {
       cuervo: '𓅃',
@@ -132,7 +127,7 @@ export class BattleScene extends Phaser.Scene {
       gaviota: '𓅪',
       campanilla: '𓏢',
     }
-    const icono = iconos[clave] || '✧'
+    const icono = iconos[activo.tipo] || '✧'
     const { width } = VISTA
     this.btnSecreto = this.add
       .text(width - 20, 16, icono, {
@@ -143,7 +138,7 @@ export class BattleScene extends Phaser.Scene {
       .setDepth(3100)
       .setInteractive({ useHandCursor: true })
 
-    this.btnSecreto.on('pointerdown', () => this.mostrarSecreto(sec.texto_combate))
+    this.btnSecreto.on('pointerdown', () => this.mostrarSecreto(activo.sec.texto_combate))
   }
 
   // El texto del secreto va en un recuadro propio: nunca pasa por linea()
@@ -181,59 +176,17 @@ export class BattleScene extends Phaser.Scene {
     })
   }
 
-  crearCuervoBatalla() {
-    return this.crearSecretoBatalla()
-  }
-
   // ------------------------------------------------------------ fondo/sprites
 
-  // Banda de suelo 1-bit por bioma, redibujable al cambiar la orientación.
+  // Banda de suelo por bioma (batalla/escenario.js), redibujable al girar.
   dibujarFondo(lugarId) {
-    this.gfxFondo?.destroy()
-    const g = this.add.graphics().setDepth(0)
-    this.gfxFondo = g
-    const { width, height } = VISTA
-    const vertical = esVistaVertical()
-    // Franja de escenario: en vertical el log/botones dejan ~115 px abajo.
-    const sueloAlto = vertical ? height - 115 : 170
-    const lineaY = vertical ? height - 130 : 148
-    // Tono según el lugar.
-    const tono = BIOMAS_TONOS[lugarId] ?? 0x14181c
-    g.fillStyle(tono, 1).fillRect(0, 0, width, sueloAlto)
-    g.lineStyle(1, 0x2a3038, 1).lineBetween(0, lineaY, width, lineaY)
-    // Motivo simple de bioma: línea de horizonte + dientes de sierra.
-    g.fillStyle(0x0a0d10, 0.6)
-    for (let x = 0; x < width; x += 24) g.fillRect(x, lineaY - 4, 12, 4)
-  }
-
-  texturaSpriteEnemigo(id) {
-    return crearTexturaEnemigo(this, id)
-  }
-
-  texturaSpriteCompanero(id) {
-    const clave = `companero:${id}`
-    if (this.textures.exists(clave)) return clave
-    const colores = ['#4a7a5a', '#7a6a4a', '#5a6a7a']
-    const color = colores[[...id].reduce((a, c) => a + c.charCodeAt(0), 0) % colores.length]
-    const cv = document.createElement('canvas')
-    cv.width = 16
-    cv.height = 16
-    const g = cv.getContext('2d')
-    g.fillStyle = '#c8a06a'
-    g.fillRect(5, 2, 6, 5) // cabeza
-    g.fillStyle = color
-    g.fillRect(4, 8, 8, 6) // cuerpo
-    g.fillStyle = '#2a2a2a'
-    g.fillRect(5, 14, 2, 2)
-    g.fillRect(9, 14, 2, 2)
-    this.textures.addCanvas(clave, cv)
-    return clave
+    dibujarFondoBioma(this, lugarId)
   }
 
   crearSprites() {
     // Héroes: héroe delante con su paleta propia, compañeros detrás en diagonal.
     this.spritesHeroes = this.combate.heroes.map((h, i) => {
-      const tex = h.tipo === 'heroe' ? crearTexturaHeroe(this, partida.heroe || 'tilo') : this.texturaSpriteCompanero(h.id)
+      const tex = h.tipo === 'heroe' ? crearTexturaHeroe(this, partida.heroe || 'tilo') : texturaSpriteCompanero(this, h.id)
       const p = this.posHeroe(i)
       const s = this.add
         .sprite(p.x, p.y, tex, h.tipo === 'heroe' ? 0 : undefined)
@@ -296,159 +249,41 @@ export class BattleScene extends Phaser.Scene {
   // ----------------------------------------------------------------- log
 
   crearLog() {
-    const { width } = VISTA
-    this.logY = VISTA.height - 66
-    this.logFondo = this.add
-      .rectangle(width / 2, this.logY + 26, width - 12, 52, 0x000000, 0.8)
-      .setStrokeStyle(1, 0xe8e8e8, 0.8)
-      .setDepth(3000)
-    this.logTexto = this.add
-      .text(12, this.logY + 6, '', { fontFamily: FUENTE, fontSize: '7px', color: '#e8e8e8', wordWrap: { width: width - 40 }, lineSpacing: 3 })
-      .setDepth(3001)
-    // Zona de acelerado (tap sobre el log).
-    this.logZona = this.add
-      .zone(width / 2, this.logY + 26, width, 60)
-      .setInteractive()
-      .on('pointerdown', () => this.acelerarLog())
-      .setDepth(3002)
-    this.logResolver = null
+    this.log = new LogBatalla(this)
+    this.logY = this.log.logY
   }
 
   relayoutLog() {
-    if (!this.logFondo) return
-    const { width, height } = VISTA
-    this.logY = height - 66
-    this.logFondo.setPosition(width / 2, this.logY + 26).setSize(width - 12, 52)
-    this.logTexto.setPosition(12, this.logY + 6).setStyle({ wordWrap: { width: width - 40 } })
-    this.logZona.setPosition(width / 2, this.logY + 26).setSize(width, 60)
-    if (this.logZona.input?.hitArea?.setSize) this.logZona.input.hitArea.setSize(width, 60)
+    this.log?.relayout()
+    if (this.log) this.logY = this.log.logY
   }
 
-  // Muestra una línea; resuelve sola al cabo de un rato o antes con tap.
-  linea(texto, ctx = {}) {
-    const final = Texto.tpl(texto, ctx)
-    this.logTexto.setText(final)
-    // Si había una línea pendiente, resolverla antes de reemplazarla: si no,
-    // su promesa quedaría huérfana y el flujo se colgaría para siempre.
-    this.acelerarLog()
-    return new Promise((resolve) => {
-      this.logResolver = resolve
-      this.tiempoLog?.remove()
-      this.tiempoLog = this.time.delayedCall(
-        Math.min(2600, MS_LOG + final.length * 10),
-        () => {
-          this.logResolver = null
-          resolve()
-        }
-      )
-    })
+  // Delegaciones finas sobre batalla/LogBatalla.js (el flujo las usa).
+  linea(texto, ctx) {
+    return this.log.linea(texto, ctx)
   }
 
   acelerarLog() {
-    if (this.logResolver) {
-      this.tiempoLog?.remove()
-      const r = this.logResolver
-      this.logResolver = null
-      r()
-    }
+    this.log?.acelerar()
   }
 
   // ---------------------------------------------------------------- botones
 
-  // Posición del botón i-ésimo: una fila en horizontal; en vertical dos
-  // filas (3+2) para que los cinco comandos no se pisen en 270 px de ancho.
-  posBoton(i, total) {
-    const { width } = VISTA
-    if (!esVistaVertical()) {
-      return {
-        x: 12 + i * ((width - 24) / total) + (width - 24) / total / 2 - 6,
-        y: this.logY - 12,
-        w: 82,
-      }
-    }
-    const fila0 = Math.ceil(total / 2)
-    const enFila0 = i < fila0
-    const n = enFila0 ? fila0 : total - fila0
-    const k = enFila0 ? i : i - fila0
-    return {
-      x: (width * (k + 0.5)) / n,
-      y: enFila0 ? this.logY - 38 : this.logY - 14,
-      w: 78,
-    }
-  }
-
   crearBotones() {
-    this.botones = {}
-    const c = this.combate
-    const esp = Datos.aventura(c.aventura).comando_especial
-    const cmdEsp = esp?.comando || 'especial'
-    const etiquetaEsp = esp?.comando ? esp.comando.toUpperCase() : 'ESPECIAL'
-    const acciones = [
-      ['atacar', 'ATACAR'],
-      ['objeto', 'OBJETO'],
-      ['especial', etiquetaEsp],
-      ['cuerno', 'CUERNO'],
-      ['huida', 'HUIDA'],
-    ]
-    this.accionesBotones = acciones
-    acciones.forEach(([id, etiqueta], i) => {
-      const p = this.posBoton(i, acciones.length)
-      const zona = this.add.zone(p.x, p.y, p.w, 18).setInteractive().setDepth(3100)
-      const caja = this.add
-        .rectangle(p.x, p.y, p.w, 16, 0x000000, 0.6)
-        .setStrokeStyle(1, 0xe0c04a, 0.8)
-        .setDepth(3100)
-      const texto = this.add
-        .text(p.x, p.y, etiqueta, { fontFamily: FUENTE, fontSize: '7px', color: '#e0c04a' })
-        .setOrigin(0.5)
-        .setDepth(3101)
-      zona.on('pointerdown', () => this.accion(id === 'especial' ? cmdEsp : id))
-      this.botones[id] = { zona, caja, texto }
-    })
-    this.refrescarBotones()
+    this.botonera = new Botonera(this, { onAccion: (id) => this.accion(id) })
   }
 
+  // Delegaciones finas sobre batalla/Botonera.js (flujo y tests las usan).
   relayoutBotones() {
-    if (!this.botones || !this.accionesBotones) return
-    this.accionesBotones.forEach(([id], i) => {
-      const b = this.botones[id]
-      if (!b) return
-      const p = this.posBoton(i, this.accionesBotones.length)
-      b.zona.setPosition(p.x, p.y).setSize(p.w, 18)
-      if (b.zona.input?.hitArea?.setSize) b.zona.input.hitArea.setSize(p.w, 18)
-      b.caja.setPosition(p.x, p.y).setSize(p.w, 16)
-      b.texto.setPosition(p.x, p.y)
-    })
+    this.botonera?.relayout()
   }
 
   refrescarBotones() {
-    const c = this.combate
-    const esp = Datos.aventura(c.aventura).comando_especial
-    const tieneEspecial = !!(esp && esp.comando) // corazon, marea, eco (Brasa null)
-    const tieneCuerno = partida.cantidad('cuerno_valoria') > 0
-    const visibles = {
-      atacar: true,
-      objeto: partida.itemsApilados().some(({ id }) => Datos.item(c.aventura, id)?.tipo === 'consumible'),
-      especial: tieneEspecial,
-      cuerno: tieneCuerno,
-      huida: true,
-    }
-    for (const [id, b] of Object.entries(this.botones)) {
-      const v = visibles[id] && c.estado !== 'fin'
-      b.zona.setVisible(v)
-      if (v) b.zona.setInteractive()
-      else b.zona.disableInteractive()
-      b.caja.setVisible(v)
-      b.texto.setVisible(v)
-    }
+    this.botonera?.refrescar()
   }
 
   setBotonesActivos(activos) {
-    for (const b of Object.values(this.botones)) {
-      b.caja.setStrokeStyle(1, activos ? 0xe0c04a : 0x555555, activos ? 0.9 : 0.5)
-      b.texto.setColor(activos ? '#e0c04a' : '#777777')
-      b.zona.input.enabled = activos
-    }
+    this.botonera?.setActivos(activos)
   }
 
   // Selector de consumibles (botón OBJETO).
@@ -675,7 +510,7 @@ export class BattleScene extends Phaser.Scene {
     const escala = this.esJefe(e) ? 2 : 1
     const p = this.posEnemigo(idx)
     const s = this.add
-      .sprite(p.x, p.y, this.texturaSpriteEnemigo(e.id))
+      .sprite(p.x, p.y, crearTexturaEnemigo(this, e.id))
       .setOrigin(0.5, 1)
       .setDepth(100 + idx)
       .setScale(escala)
@@ -854,9 +689,7 @@ export class BattleScene extends Phaser.Scene {
       })
 
       if (resultado === 'derrota' || resultado === 'caida') {
-        this.scene.stop('Ui')
-        this.scene.stop('World')
-        this.scene.start('Epilogo', { tipo: resultado === 'caida' ? 'caida' : 'muerte' })
+        salirDelMundo(this, 'Epilogo', { tipo: resultado === 'caida' ? 'caida' : 'muerte' })
         this.scene.stop('Battle')
         return
       }
