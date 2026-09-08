@@ -201,7 +201,7 @@ export class BattleScene extends Phaser.Scene {
       const escala = this.esJefe(e) ? 2 : 1
       const p = this.posEnemigo(i)
       const s = this.add
-        .sprite(p.x, p.y, this.texturaSpriteEnemigo(e.id))
+        .sprite(p.x, p.y, crearTexturaEnemigo(this, e.id))
         .setOrigin(0.5, 1)
         .setDepth(100 + i)
         .setScale(escala)
