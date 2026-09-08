@@ -2,6 +2,11 @@
 // d-pad 8 direcciones abajo-izquierda, botón de acción abajo-derecha,
 // botón de inventario (≡) y botón de pausa (⏸) arriba-derecha.
 // Multitouch: cada zona es interactiva por sí misma (activePointers: 3).
+//
+// OJO: nada de setScrollFactor(0) aquí. La cámara de Ui nunca se desplaza
+// y en Phaser 4 los objetos con scrollFactor(0) bajo zoom ≠ 1 quedan
+// descuadrados del mundo (render fuera de vista e input que no llega).
+// Con el scrollFactor por defecto siguen el mismo transform que el HUD.
 
 import Phaser from 'phaser'
 import { VISTA } from '../core/resolucion.js'
@@ -20,7 +25,7 @@ export class MenuTactil {
     this.onMenu = onMenu || (() => {})
     this.onPausa = onPausa || (() => {})
 
-    this.raiz = escena.add.container(0, 0).setScrollFactor(0).setDepth(2000)
+    this.raiz = escena.add.container(0, 0).setDepth(2000)
 
     this.crearDpad(56, VISTA.height - 56)
     this.crearBotonAccion(VISTA.width - 44, VISTA.height - 44)
@@ -81,7 +86,7 @@ export class MenuTactil {
       const gfx = e.add.circle(bx, by, RADIO * 0.75, 0xffffff, 0.14)
       this.raiz.add([gfx])
       gfx.setDepth(2001)
-      zona.setScrollFactor(0).setDepth(2002)
+      zona.setDepth(2002)
 
       zona.on('pointerdown', () => this.pulsar(nombre, gfx))
       zona.on('pointerout', () => this.soltar(nombre, gfx))
@@ -118,13 +123,12 @@ export class MenuTactil {
     const e = this.escena
     // Hit area accesible ≥ 48×48 px
     const zona = e.add.zone(bx, by, 48, 48).setInteractive()
-    const circulo = e.add.circle(bx, by, 22, 0xd4574e, 0.35).setScrollFactor(0).setDepth(2001)
+    const circulo = e.add.circle(bx, by, 22, 0xd4574e, 0.35).setDepth(2001)
     const etiqueta = e.add
       .text(bx, by, 'A', { fontFamily: FUENTE, fontSize: '12px', color: '#ffffff' })
       .setOrigin(0.5)
-      .setScrollFactor(0)
       .setDepth(2002)
-    zona.setScrollFactor(0).setDepth(2002)
+    zona.setDepth(2002)
     this.accionBtn = { zona, circulo, etiqueta }
     zona.on('pointerdown', () => {
       this.accion = true
@@ -167,12 +171,11 @@ export class MenuTactil {
   crearBotonMenu(bx, by) {
     const e = this.escena
     // Hit area accesible ≥ 48×48 px
-    const zona = e.add.zone(bx, by, 48, 48).setInteractive().setScrollFactor(0).setDepth(2002)
-    const fondo = e.add.circle(bx, by, 14, 0x000000, 0.4).setScrollFactor(0).setDepth(2001)
+    const zona = e.add.zone(bx, by, 48, 48).setInteractive().setDepth(2002)
+    const fondo = e.add.circle(bx, by, 14, 0x000000, 0.4).setDepth(2001)
     const etiqueta = e.add
       .text(bx, by, '≡', { fontFamily: FUENTE, fontSize: '13px', color: '#ffffff' })
       .setOrigin(0.5)
-      .setScrollFactor(0)
       .setDepth(2002)
     zona.on('pointerdown', () => {
       audio8.sfx('confirmar')
@@ -184,12 +187,11 @@ export class MenuTactil {
   crearBotonPausa(bx, by) {
     const e = this.escena
     // Hit area accesible ≥ 48×48 px
-    const zona = e.add.zone(bx, by, 48, 48).setInteractive().setScrollFactor(0).setDepth(2002)
-    const fondo = e.add.circle(bx, by, 14, 0x000000, 0.4).setScrollFactor(0).setDepth(2001)
+    const zona = e.add.zone(bx, by, 48, 48).setInteractive().setDepth(2002)
+    const fondo = e.add.circle(bx, by, 14, 0x000000, 0.4).setDepth(2001)
     const etiqueta = e.add
       .text(bx, by, '⏸', { fontFamily: FUENTE, fontSize: '11px', color: '#ffffff' })
       .setOrigin(0.5)
-      .setScrollFactor(0)
       .setDepth(2002)
     zona.on('pointerdown', () => {
       audio8.sfx('confirmar')

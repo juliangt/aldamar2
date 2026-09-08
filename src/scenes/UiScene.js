@@ -1,6 +1,7 @@
-// UiScene — capa de interfaz paralela al mundo (cámara a zoom 1): HUD,
-// banner de lugar, toasts, pausa y menú táctil. Vive aparte porque las
-// zonas interactivas con scrollFactor(0) no reciben input bajo zoom ≠ 1.
+// UiScene — capa de interfaz paralela al mundo (misma vista lógica, cámara
+// propia que no sigue al jugador): HUD, banner de lugar, toasts, pausa y
+// menú táctil. Los controles no usan scrollFactor(0): bajo zoom ≠ 1
+// descuadra su render y su input en Phaser 4 (ver nota en MenuTactil).
 
 import Phaser from 'phaser'
 import Datos from '../core/Datos.js'
