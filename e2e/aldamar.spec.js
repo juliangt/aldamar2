@@ -127,6 +127,142 @@ test.describe('Aldamar E2E Suite', () => {
     ).toBe(false)
   })
 
+  // Posición en página de un botón táctil (dpad: 'arriba'|'abajo'|...;
+  // otros: 'pausa'|'menu'|'accion'), vía worldView de la cámara de Ui.
+  async function posBotonTactil(page, nombre) {
+    return page.evaluate((n) => {
+      const g = window.__ALDAMAR__.game
+      const ui = g.scene.getScene('Ui')
+      const mt = ui.menuTactil
+      const obj =
+        n === 'pausa' ? mt.btnPausa.zona : n === 'menu' ? mt.btnMenu.zona : mt.botones[n].zona
+      const v = ui.cameras.main.worldView
+      const r = g.canvas.getBoundingClientRect()
+      return {
+        x: r.left + ((obj.x - v.x) / v.width) * r.width,
+        y: r.top + ((obj.y - v.y) / v.height) * r.height,
+      }
+    }, nombre)
+  }
+
+  // Cierra diálogos/decisiones abiertos (modal bloquea los controles).
+  async function cerrarModales(page) {
+    for (let i = 0; i < 8; i++) {
+      const modal = await page.evaluate(() => window.__ALDAMAR__.game.scene.getScene('Ui').modal)
+      if (!modal) return
+      await page.mouse.click(190, 300)
+      await page.waitForTimeout(150)
+    }
+  }
+
+  test('controles táctiles visibles y funcionales: dpad mueve y ⏸ pausa', async ({ page }) => {
+    await page.goto('/')
+    await page.waitForFunction(() => window.__ALDAMAR__?.game?.isBooted)
+
+    // Entrar al mundo como lo hace MenuScene
+    await page.evaluate(() => {
+      const g = window.__ALDAMAR__.game
+      const { partida } = window.__ALDAMAR__
+      partida.nuevaPartida('corazon_ceniza', 'tilo')
+      for (const s of g.scene.getScenes(true)) g.scene.stop(s.scene.key)
+      g.scene.start('World', {
+        aventura: partida.aventura,
+        lugar: partida.lugar,
+        entrada: partida.entrada,
+      })
+    })
+    await page.waitForFunction(() => window.__ALDAMAR__.game.scene.isActive('Ui'))
+    await page.waitForTimeout(400)
+
+    // Regresión (zoom ≠ 1 + scrollFactor(0)): los controles quedaban fuera
+    // de la vista y sin input en pantallas retina. Ahora deben responder.
+    await cerrarModales(page)
+
+    // dpad «derecha»: mantener pulsado y comprobar que el jugador avanza
+    const xAntes = await page.evaluate(
+      () => window.__ALDAMAR__.game.scene.getScene('World').jugador.x
+    )
+    const d = await posBotonTactil(page, 'derecha')
+    await page.mouse.move(d.x, d.y)
+    await page.mouse.down()
+    await page.waitForTimeout(400)
+    const xDurante = await page.evaluate(
+      () => window.__ALDAMAR__.game.scene.getScene('World').jugador.x
+    )
+    await page.mouse.up()
+    expect(xDurante).toBeGreaterThan(xAntes)
+
+    // ⏸: abrir pausa (cerrando antes cualquier diálogo del camino)
+    await cerrarModales(page)
+    const p = await posBotonTactil(page, 'pausa')
+    await page.mouse.click(p.x, p.y)
+    await page.waitForTimeout(300)
+    const pausado = await page.evaluate(
+      () => window.__ALDAMAR__.game.scene.getScene('World').pausado
+    )
+    expect(pausado).toBe(true)
+  })
+
+  test('batalla: arranca sin crash y ATACAR golpea por toque', async ({ page }) => {
+    await page.goto('/')
+    await page.waitForFunction(() => window.__ALDAMAR__?.game?.isBooted)
+
+    await page.evaluate(() => {
+      const g = window.__ALDAMAR__.game
+      const { partida } = window.__ALDAMAR__
+      partida.nuevaPartida('corazon_ceniza', 'tilo')
+      for (const s of g.scene.getScenes(true)) g.scene.stop(s.scene.key)
+      g.scene.start('World', {
+        aventura: partida.aventura,
+        lugar: partida.lugar,
+        entrada: partida.entrada,
+      })
+    })
+    await page.waitForFunction(() => window.__ALDAMAR__.game.scene.isActive('Ui'))
+
+    // Lanzar batalla como el flujo real (WorldScene.entrarEnBatalla)
+    await page.evaluate(() => {
+      const g = window.__ALDAMAR__.game
+      const w = g.scene.getScene('World')
+      w.scene.sleep('Ui')
+      w.scene.sleep('World')
+      w.scene.launch('Battle', { enemigos: ['lobo'], origen: 'World', lugar: w.lugarId })
+    })
+    // Regresión: crearSprites llamaba a this.texturaSpriteEnemigo (inexistente
+    // tras el refactor) y toda batalla crasheaba al arrancar.
+    await page.waitForFunction(() => window.__ALDAMAR__.game.scene.isActive('Battle'))
+
+    // Esperar a que la intro termine y la botonera acepte acciones.
+    await page.waitForFunction(
+      () => window.__ALDAMAR__.game.scene.getScene('Battle')?.esperandoAccion === true,
+      null,
+      { timeout: 15000 }
+    )
+    await page.waitForTimeout(300)
+
+    const pvEnemigo = () =>
+      page.evaluate(
+        () => window.__ALDAMAR__.game.scene.getScene('Battle').combate.enemigos[0].vida
+      )
+    const antes = await pvEnemigo()
+
+    const posAtacar = await page.evaluate(() => {
+      const g = window.__ALDAMAR__.game
+      const b = g.scene.getScene('Battle')
+      const z = b.botonera.botones.atacar.zona
+      const v = b.cameras.main.worldView
+      const r = g.canvas.getBoundingClientRect()
+      return {
+        x: r.left + ((z.x - v.x) / v.width) * r.width,
+        y: r.top + ((z.y - v.y) / v.height) * r.height,
+      }
+    })
+    await page.mouse.click(posAtacar.x, posAtacar.y)
+    await page.waitForTimeout(900)
+
+    expect(await pvEnemigo()).toBeLessThan(antes)
+  })
+
   test('adaptabilidad responsiva vertical / horizontal', async ({ page }) => {
     await page.goto('/')
     const canvas = page.locator('#app canvas')
