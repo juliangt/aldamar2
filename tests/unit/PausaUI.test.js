@@ -17,15 +17,22 @@ vi.mock('../../src/core/pantalla.js', () => ({
   estaPantallaCompleta: vi.fn().mockReturnValue(false),
 }))
 
+vi.mock('../../src/core/opciones.js', () => ({
+  obtenerMinimapaHabilitado: vi.fn(() => true),
+  guardarMinimapaHabilitado: vi.fn(),
+}))
+
 import { PausaUI } from '../../src/ui/PausaUI.js'
 import { audio8 } from '../../src/core/Audio8.js'
 import { alternarPantallaCompleta, estaPantallaCompleta } from '../../src/core/pantalla.js'
+import { obtenerMinimapaHabilitado, guardarMinimapaHabilitado } from '../../src/core/opciones.js'
 import { crearMockEscena } from '../helpers/phaser.js'
 
 describe('PausaUI Unit Tests', () => {
   let escena
   let onReanudar
   let onSalir
+  let onMinimapaToggle
   let pausaUI
 
   beforeEach(() => {
@@ -33,11 +40,13 @@ describe('PausaUI Unit Tests', () => {
     audio8.volumenMaster = 0.8
     audio8.mute = false
     estaPantallaCompleta.mockReturnValue(false)
+    obtenerMinimapaHabilitado.mockReturnValue(true)
 
     escena = crearMockEscena()
     onReanudar = vi.fn()
     onSalir = vi.fn()
-    pausaUI = new PausaUI(escena, { onReanudar, onSalir })
+    onMinimapaToggle = vi.fn()
+    pausaUI = new PausaUI(escena, { onReanudar, onSalir, onMinimapaToggle })
   })
 
   it('inicializa contenedor oculto y crea todos los elementos de la UI', () => {
@@ -51,6 +60,7 @@ describe('PausaUI Unit Tests', () => {
     expect(pausaUI.btnVolMenos).toBeDefined()
     expect(pausaUI.txtVolumen).toBeDefined()
     expect(pausaUI.btnVolMas).toBeDefined()
+    expect(pausaUI.btnMinimapaToggle).toBeDefined()
     expect(pausaUI.btnPantallaCompleta).toBeDefined()
     expect(pausaUI.btnSalir).toBeDefined()
   })
@@ -132,6 +142,30 @@ describe('PausaUI Unit Tests', () => {
     expect(lblPantallaCompleta.setText).toHaveBeenCalledWith('PANTALLA COMPLETA')
   })
 
+  it('pulsar Minimapa Toggle alterna el valor en opciones, actualiza etiqueta y reproduce sonido', () => {
+    const zonaMinimapa = pausaUI.btnMinimapaToggle.list[0]
+    const lblMinimapa = pausaUI.btnMinimapaToggle.list[2]
+
+    obtenerMinimapaHabilitado.mockReturnValue(true)
+    zonaMinimapa._handlers['pointerdown']()
+
+    expect(guardarMinimapaHabilitado).toHaveBeenCalledWith(false)
+    expect(audio8.sfx).toHaveBeenCalledWith('confirmar')
+    expect(onMinimapaToggle).toHaveBeenCalledWith(false)
+
+    obtenerMinimapaHabilitado.mockReturnValue(false)
+    pausaUI.actualizarTextos()
+    expect(lblMinimapa.setText).toHaveBeenCalledWith('MINIMAPA: DESACTIVADO')
+
+    zonaMinimapa._handlers['pointerdown']()
+    expect(guardarMinimapaHabilitado).toHaveBeenCalledWith(true)
+    expect(onMinimapaToggle).toHaveBeenCalledWith(true)
+
+    obtenerMinimapaHabilitado.mockReturnValue(true)
+    pausaUI.actualizarTextos()
+    expect(lblMinimapa.setText).toHaveBeenCalledWith('MINIMAPA: ACTIVADO')
+  })
+
   it('setInfo actualiza el texto de info', () => {
     pausaUI.setInfo('Texto de prueba')
     expect(pausaUI.info.setText).toHaveBeenCalledWith('Texto de prueba')
@@ -161,8 +195,9 @@ describe('PausaUI Unit Tests', () => {
     expect(pausaUI.fondo.setPosition).toHaveBeenCalledWith(cx, cy)
     expect(pausaUI.fondo.setSize).toHaveBeenCalledWith(anchoCaja, altoCaja)
 
-    expect(pausaUI.titulo.setPosition).toHaveBeenCalledWith(cx, cy - 92)
-    expect(pausaUI.btnReanudar.setPosition).toHaveBeenCalledWith(cx, cy - 42)
+    expect(pausaUI.titulo.setPosition).toHaveBeenCalledWith(cx, cy - 96)
+    expect(pausaUI.btnReanudar.setPosition).toHaveBeenCalledWith(cx, cy - 52)
+    expect(pausaUI.btnMinimapaToggle.setPosition).toHaveBeenCalledWith(cx, cy + 32)
   })
 
   it('botones cambian color al pasar el puntero sobre ellos (hover)', () => {

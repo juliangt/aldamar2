@@ -7,13 +7,15 @@
 import { VISTA } from '../core/resolucion.js'
 import { audio8 } from '../core/Audio8.js'
 import { alternarPantallaCompleta, estaPantallaCompleta } from '../core/pantalla.js'
+import { obtenerMinimapaHabilitado, guardarMinimapaHabilitado } from '../core/opciones.js'
 import { FUENTE } from './tema.js'
 
 export class PausaUI {
-  constructor(escena, { onReanudar, onSalir } = {}) {
+  constructor(escena, { onReanudar, onSalir, onMinimapaToggle } = {}) {
     this.escena = escena
     this.onReanudar = onReanudar
     this.onSalir = onSalir
+    this.onMinimapaToggle = onMinimapaToggle
     const add = escena.add
 
     this.contenedor = add.container(0, 0).setDepth(4000).setVisible(false)
@@ -74,14 +76,30 @@ export class PausaUI {
     })
     this.contenedor.add([this.btnVolMenos, this.txtVolumen, this.btnVolMas])
 
-    // 4. Pantalla completa (nativo del navegador; en iOS sigue en ventana)
+    // 4. Minimapa Toggle (Activado / Desactivado)
+    const miniHab = obtenerMinimapaHabilitado()
+    this.btnMinimapaToggle = this.crearBoton(
+      180,
+      24,
+      miniHab ? 'MINIMAPA: ACTIVADO' : 'MINIMAPA: DESACTIVADO',
+      () => {
+        const nuevo = !obtenerMinimapaHabilitado()
+        guardarMinimapaHabilitado(nuevo)
+        audio8.sfx('confirmar')
+        this.actualizarTextos()
+        this.onMinimapaToggle?.(nuevo)
+      }
+    )
+    this.contenedor.add(this.btnMinimapaToggle)
+
+    // 5. Pantalla completa (nativo del navegador; en iOS sigue en ventana)
     this.btnPantallaCompleta = this.crearBoton(180, 24, 'PANTALLA COMPLETA', () => {
       audio8.sfx('confirmar')
       alternarPantallaCompleta().then(() => this.actualizarTextos())
     })
     this.contenedor.add(this.btnPantallaCompleta)
 
-    // 5. Salir al Menú Principal
+    // 6. Salir al Menú Principal
     this.btnSalir = this.crearBoton(180, 24, 'GUARDAR Y SALIR', () => {
       audio8.sfx('confirmar')
       this.onSalir?.()
@@ -104,15 +122,16 @@ export class PausaUI {
       this.velo.input.hitArea.setSize(width, height)
     }
     this.fondo.setPosition(cx, cy).setSize(anchoCaja, altoCaja)
-    this.titulo.setPosition(cx, cy - 92)
-    this.info.setPosition(cx, cy - 72)
-    this.btnReanudar.setPosition(cx, cy - 42)
-    this.btnAudioToggle.setPosition(cx, cy - 10)
-    this.btnVolMenos.setPosition(cx - 70, cy + 22)
-    this.txtVolumen.setPosition(cx, cy + 22)
-    this.btnVolMas.setPosition(cx + 70, cy + 22)
-    this.btnPantallaCompleta.setPosition(cx, cy + 54)
-    this.btnSalir.setPosition(cx, cy + 86)
+    this.titulo.setPosition(cx, cy - 96)
+    this.info.setPosition(cx, cy - 78)
+    this.btnReanudar.setPosition(cx, cy - 52)
+    this.btnAudioToggle.setPosition(cx, cy - 24)
+    this.btnVolMenos.setPosition(cx - 70, cy + 4)
+    this.txtVolumen.setPosition(cx, cy + 4)
+    this.btnVolMas.setPosition(cx + 70, cy + 4)
+    this.btnMinimapaToggle.setPosition(cx, cy + 32)
+    this.btnPantallaCompleta.setPosition(cx, cy + 60)
+    this.btnSalir.setPosition(cx, cy + 88)
   }
 
   crearBoton(w, h, texto, onClick) {
@@ -143,6 +162,10 @@ export class PausaUI {
     if (this.txtVolumen) {
       const pct = Math.round(audio8.volumenMaster * 100)
       this.txtVolumen.setText(`VOL ${pct}%`)
+    }
+    if (this.btnMinimapaToggle) {
+      const miniHab = obtenerMinimapaHabilitado()
+      this.btnMinimapaToggle.setEtiqueta(miniHab ? 'MINIMAPA: ACTIVADO' : 'MINIMAPA: DESACTIVADO')
     }
     if (this.btnPantallaCompleta) {
       this.btnPantallaCompleta.setEtiqueta(
