@@ -295,7 +295,6 @@ export class WorldScene extends Phaser.Scene {
             e.sprite?.destroy()
           }
         }
-
         if (this.enemigosMapa) {
           let k = 0
           for (let j = 0; j < this.enemigosMapa.length; j++) {
@@ -305,6 +304,7 @@ export class WorldScene extends Phaser.Scene {
           }
           this.enemigosMapa.length = k
         }
+        this.enemigosVivos = this.enemigosMapa
       } else if (data.resultado === 'huida') {
         // Empujar al jugador lejos del enemigo más cercano + gracia.
         let masCercano = null
@@ -405,7 +405,8 @@ export class WorldScene extends Phaser.Scene {
   async activarGatillo(gatillo) {
     if (this.transicionando || this.pausado || this.ui?.modal) return
     let limpio = true
-    for (const e of this.enemigosMapa || []) {
+    const lista = this.enemigosVivos || this.enemigosMapa || []
+    for (const e of lista) {
       if (!e.derrotado) {
         limpio = false
         break
