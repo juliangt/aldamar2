@@ -29,11 +29,7 @@ export const ValidadorMapa = {
     return props
   },
 
-  validar(lugarId, lugarDato, mapa, aventura = 'corazon_ceniza') {
-    const avisos = []
-    if (!lugarDato || !mapa) return avisos
-
-    // 1. Capas obligatorias
+  _validarCapasObligatorias(mapa, avisos) {
     const capasObligatorias = [
       'suelo',
       'obstaculos',
@@ -56,8 +52,9 @@ export const ValidadorMapa = {
         if (!existe) avisos.push(`falta la capa «${nombre}»`)
       }
     }
+  },
 
-    // 2. NPCs (bidireccional)
+  _validarNpcs(lugarDato, mapa, avisos) {
     const npcsDeclarados = Object.keys(lugarDato.npcs || {})
     const npcsPintados = (this.leerObjetos(mapa, 'npcs') || []).map((o) => o.name)
     for (const id of npcsDeclarados) {
@@ -68,8 +65,9 @@ export const ValidadorMapa = {
       if (!npcsDeclarados.includes(id))
         avisos.push(`NPC en el mapa sin declarar en JSON: ${id}`)
     }
+  },
 
-    // 3. Enemigos (bidireccional por conteo / multiset)
+  _validarEnemigos(lugarDato, mapa, avisos) {
     const eneDeclarados = lugarDato.enemigos || []
     const enePintados = (this.leerObjetos(mapa, 'enemigos') || []).map((o) => o.name)
     const contar = (lista) =>
@@ -95,8 +93,9 @@ export const ValidadorMapa = {
           `enemigo en el mapa sin declarar en JSON: ${id} (${pin} en mapa, ${dec} declarados)`
         )
     }
+  },
 
-    // 4. Objetos / pickups (bidireccional)
+  _validarObjetos(lugarDato, mapa, avisos) {
     const objDeclarados = lugarDato.objetos || []
     const objPintados = (this.leerObjetos(mapa, 'objetos') || []).map((o) => o.name)
     for (const id of objDeclarados) {
@@ -107,16 +106,18 @@ export const ValidadorMapa = {
       if (!objDeclarados.includes(id))
         avisos.push(`objeto en el mapa sin declarar en JSON: ${id}`)
     }
+  },
 
-    // 5. Monedas
+  _validarMonedas(lugarDato, mapa, avisos) {
     const monDeclaradas = lugarDato.monedas || 0
     const monPintadas = this.leerObjetos(mapa, 'monedas') || []
     if (monDeclaradas > 0 && !monPintadas.length)
       avisos.push(`monedas declaradas (${monDeclaradas}) sin pintar en el mapa`)
     else if (monDeclaradas === 0 && monPintadas.length > 0)
       avisos.push(`monedas en el mapa sin declarar en JSON (${monPintadas.length})`)
+  },
 
-    // 6. Gatillos de eventos (decision / final) en capa eventos
+  _validarEventos(lugarDato, mapa, aventura, avisos) {
     const gatillosDeclarados = (lugarDato.eventos || []).filter((eId) => {
       const ev = Datos.evento(aventura, eId)
       return ev && (ev.tipo === 'decision' || ev.tipo === 'final')
@@ -132,8 +133,9 @@ export const ValidadorMapa = {
       if (!gatillosDeclarados.includes(id))
         avisos.push(`evento en el mapa sin declarar en JSON: ${id}`)
     }
+  },
 
-    // 7. Salidas
+  _validarSalidas(lugarDato, mapa, aventura, avisos) {
     const salidasPintadas = this.leerObjetos(mapa, 'salidas') || []
     for (const s of salidasPintadas) {
       const props = this.leerProps(s)
@@ -156,13 +158,28 @@ export const ValidadorMapa = {
           )
       }
     }
+  },
 
-    // 8. Descanso
+  _validarDescanso(lugarDato, mapa, avisos) {
     if (lugarDato.descanso) {
       const puntos = this.leerObjetos(mapa, 'descanso') || []
       if (!puntos.length)
         avisos.push('lugar con descanso:true sin punto «descanso»')
     }
+  },
+
+  validar(lugarId, lugarDato, mapa, aventura = 'corazon_ceniza') {
+    const avisos = []
+    if (!lugarDato || !mapa) return avisos
+
+    this._validarCapasObligatorias(mapa, avisos)
+    this._validarNpcs(lugarDato, mapa, avisos)
+    this._validarEnemigos(lugarDato, mapa, avisos)
+    this._validarObjetos(lugarDato, mapa, avisos)
+    this._validarMonedas(lugarDato, mapa, avisos)
+    this._validarEventos(lugarDato, mapa, aventura, avisos)
+    this._validarSalidas(lugarDato, mapa, aventura, avisos)
+    this._validarDescanso(lugarDato, mapa, avisos)
 
     return avisos
   },
