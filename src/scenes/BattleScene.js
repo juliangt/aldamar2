@@ -291,8 +291,13 @@ export class BattleScene extends Phaser.Scene {
     const c = this.combate
     const opciones = partida
       .itemsApilados()
-      .filter(({ id }) => Datos.item(c.aventura, id)?.tipo === 'consumible')
-      .map(({ id, n }) => ({ id, etiqueta: `${Datos.item(c.aventura, id).nombre} ×${n}` }))
+      .reduce((acc, { id, n }) => {
+        const item = Datos.item(c.aventura, id)
+        if (item?.tipo === 'consumible') {
+          acc.push({ id, etiqueta: `${item.nombre} ×${n}` })
+        }
+        return acc
+      }, [])
     if (!opciones.length) return null
     return new Promise((resolve) => {
       this.selectorObjetoResolver = resolve
