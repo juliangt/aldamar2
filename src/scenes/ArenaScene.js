@@ -62,7 +62,7 @@ export class ArenaScene extends Phaser.Scene {
       ['curar', () => { partida.stats.vida = partida.stats.vidaMax; this.scene.restart() }],
       ['grieta+15', () => { partida.grieta = Math.min(100, partida.grieta + 15); partida.guardar(); this.scene.restart() }],
       ['cuerno', () => { partida.inventario.push('cuerno_valoria'); partida.guardar(); this.scene.restart() }],
-      ['companeros', () => { for (const id of ['sylvana', 'aldric', 'torkan']) if (!partida.companeros.includes(id)) partida.companeros.push(id); partida.descansar(); this.scene.restart() }],
+      ['companeros', () => { const compSet = new Set(partida.companeros); for (const id of ['sylvana', 'aldric', 'torkan']) { if (!compSet.has(id)) { partida.companeros.push(id); compSet.add(id); } } partida.descansar(); this.scene.restart() }],
     ]
     herramientas.forEach(([etiqueta, fn], i) => {
       this.add

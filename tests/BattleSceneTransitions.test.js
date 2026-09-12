@@ -185,6 +185,7 @@ describe('WorldScene enemy overlap safety fixes', () => {
 
   it('tocarEnemigo does not lock transicionando when there are no living enemies', () => {
     world.enemigosMapa = [{ id: 'lobo', derrotado: true }]
+    world.enemigosVivos = []
 
     world.tocarEnemigo({ id: 'lobo' })
 
@@ -194,6 +195,7 @@ describe('WorldScene enemy overlap safety fixes', () => {
 
   it('tocarEnemigo blocks trigger during graciaHuida based on game loop time', () => {
     world.enemigosMapa = [{ id: 'lobo', derrotado: false }]
+    world.enemigosVivos = world.enemigosMapa
     world.graciaHuida = 2000 // future timestamp
 
     world.tocarEnemigo({ id: 'lobo' })
@@ -204,6 +206,7 @@ describe('WorldScene enemy overlap safety fixes', () => {
 
   it('tocarEnemigo transitions and launches battle when valid living enemies exist', () => {
     world.enemigosMapa = [{ id: 'lobo', derrotado: false }]
+    world.enemigosVivos = world.enemigosMapa
     world.graciaHuida = 500 // past timestamp
 
     world.tocarEnemigo({ id: 'lobo' })

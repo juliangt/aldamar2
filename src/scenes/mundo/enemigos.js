@@ -9,6 +9,7 @@ import { crearTexturaEnemigo } from '../../core/Sprites.js'
 // contra todos los vivos (trasgo ×2 en minas = multi-enemigo).
 export function crearEnemigos(escena, mapa, lugar) {
   escena.enemigosMapa = []
+  escena.enemigosVivos = []
   const capa = mapa.getObjectLayer('enemigos')
   if (!capa) return
   for (const o of capa.objects) {
@@ -32,13 +33,14 @@ export function crearEnemigos(escena, mapa, lugar) {
     const enemigo = { id, sprite, x: o.x, y: o.y }
     escena.physics.add.overlap(escena.jugador, sprite, () => escena.tocarEnemigo(enemigo))
     escena.enemigosMapa.push(enemigo)
+    escena.enemigosVivos.push(enemigo)
   }
 }
 
 // ¿Debe iniciar el combate al tocar un enemigo? Puro y testeable: bloqueos
 // de transición/pausa/modal, gracia de huida y Battle ya activa.
 export function puedeIniciarCombate(escena, ahora) {
-  const vivos = (escena.enemigosMapa || []).filter((e) => !e.derrotado)
+  const vivos = escena.enemigosVivos ?? (escena.enemigosMapa || []).filter((e) => !e.derrotado)
   if (!vivos.length) return false
   if (
     escena.transicionando ||
@@ -54,7 +56,7 @@ export function puedeIniciarCombate(escena, ahora) {
 // En aguja_cima el combate es estrictamente secuencial:
 // eco_voz → capitan_rehecho → morvath.
 export function enemigosDeBatalla(escena) {
-  const vivos = (escena.enemigosMapa || []).filter((e) => !e.derrotado)
+  const vivos = escena.enemigosVivos ?? (escena.enemigosMapa || []).filter((e) => !e.derrotado)
   const esSecuencial = escena.lugarId === 'aguja_cima'
   return {
     ids: esSecuencial ? [vivos[0].id] : vivos.map((e) => e.id),
