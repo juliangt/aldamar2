@@ -296,6 +296,7 @@ export class WorldScene extends Phaser.Scene {
           }
         }
         this.enemigosMapa = this.enemigosMapa.filter((e) => !e.derrotado)
+        this.enemigosVivos = this.enemigosMapa // They are equivalent after filter
       } else if (data.resultado === 'huida') {
         // Empujar al jugador lejos del enemigo más cercano + gracia.
         let masCercano = null
@@ -395,7 +396,7 @@ export class WorldScene extends Phaser.Scene {
 
   async activarGatillo(gatillo) {
     if (this.transicionando || this.pausado || this.ui?.modal) return
-    const vivos = (this.enemigosMapa || []).filter((e) => !e.derrotado)
+    const vivos = this.enemigosVivos || []
     const limpio = vivos.length === 0
     const res = await EventEngine.gatillo(
       partida,
