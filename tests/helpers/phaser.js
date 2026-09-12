@@ -43,6 +43,7 @@ export function crearElemento(props = {}) {
     setFontSize: vi.fn().mockReturnThis(),
     setAlpha: vi.fn().mockReturnThis(),
     setColor: vi.fn().mockReturnThis(),
+    setStyle: vi.fn().mockReturnThis(),
     setInteractive: vi.fn().mockReturnThis(),
     disableInteractive: vi.fn().mockReturnThis(),
     on: vi.fn(function (ev, cb) {
