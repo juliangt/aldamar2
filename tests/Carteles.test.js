@@ -1,7 +1,9 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import Datos from '../src/core/Datos.js'
+import { partida } from '../src/core/partida.js'
+import { salidaBloqueada } from '../src/scenes/mundo/carteles.js'
 import {
   nombreCorto,
   posicionCartel,
@@ -133,5 +135,31 @@ describe('Carteles — datos: nombre_corto en todos los destinos de salida', () 
       }
     }
     expect(total).toBe(39)
+  })
+})
+
+describe('salidaBloqueada', () => {
+  beforeEach(() => {
+    partida.inventario = []
+    partida.flags = {}
+  })
+
+  it('devuelve false si el destino no requiere nada', () => {
+    expect(salidaBloqueada({})).toBe(false)
+    expect(salidaBloqueada({ requiere: null })).toBe(false)
+  })
+
+  it('devuelve true si requiere algo que no está en el inventario ni en flags', () => {
+    expect(salidaBloqueada({ requiere: 'llave_dorada' })).toBe(true)
+  })
+
+  it('devuelve false si el requerimiento está en el inventario', () => {
+    partida.inventario = ['llave_dorada']
+    expect(salidaBloqueada({ requiere: 'llave_dorada' })).toBe(false)
+  })
+
+  it('devuelve false si el requerimiento está en las flags', () => {
+    partida.flags = { llave_dorada: true }
+    expect(salidaBloqueada({ requiere: 'llave_dorada' })).toBe(false)
   })
 })
