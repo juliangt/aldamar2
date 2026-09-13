@@ -8,6 +8,8 @@ vi.mock('../../src/ui/MinimapaUI.js', () => {
       this.actualizar = vi.fn()
       this.relayout = vi.fn()
       this.setVisible = vi.fn()
+      this.setModo = vi.fn()
+      this.alternarModo = vi.fn()
     }),
   }
 })
@@ -87,7 +89,10 @@ describe('UiScene Minimapa Integration', () => {
     uiScene.init({ nombre: 'Aldea', mapaInfo })
     uiScene.create()
 
-    expect(MinimapaUI).toHaveBeenCalledWith(uiScene, mapaInfo)
+    expect(MinimapaUI).toHaveBeenCalledWith(
+      uiScene,
+      expect.objectContaining(mapaInfo)
+    )
     expect(uiScene.minimapa).toBeDefined()
   })
 
@@ -133,5 +138,28 @@ describe('UiScene Minimapa Integration', () => {
 
     onMinimapaToggle(true)
     expect(uiScene.minimapa.setVisible).toHaveBeenCalledWith(true)
+  })
+
+  it('onModoMinimapaChange de PausaUI cambia el modo del minimapa', () => {
+    uiScene.init({
+      mapaInfo: { mapaWidth: 100, mapaHeight: 100 },
+    })
+    uiScene.create()
+
+    const onModoMinimapaChange = uiScene.pausa.opts.onModoMinimapaChange
+    expect(onModoMinimapaChange).toBeDefined()
+
+    onModoMinimapaChange('aventura')
+    expect(uiScene.minimapa.setModo).toHaveBeenCalledWith('aventura')
+  })
+
+  it('tecla M alterna el modo del minimapa', () => {
+    uiScene.init({
+      mapaInfo: { mapaWidth: 100, mapaHeight: 100 },
+    })
+    uiScene.create()
+
+    uiScene.input.keyboard.trigger('keydown-M')
+    expect(uiScene.minimapa.alternarModo).toHaveBeenCalledTimes(1)
   })
 })

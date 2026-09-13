@@ -38,7 +38,10 @@ export class UiScene extends Phaser.Scene {
     this.crearHud()
     this.crearBanner(this.nombreLugar)
     if (this.mapaInfo) {
-      this.minimapa = new MinimapaUI(this, this.mapaInfo)
+      this.minimapa = new MinimapaUI(this, {
+        ...this.mapaInfo,
+        onModoChange: () => this.pausa?.actualizarTextos(),
+      })
     }
     this.crearPausa()
 
@@ -75,6 +78,12 @@ export class UiScene extends Phaser.Scene {
         return
       }
       this.mundo && this.mundo.alternarPausa()
+    })
+
+    // Tecla M para alternar vista del minimapa (local / aventura)
+    this.input.keyboard.on('keydown-M', () => {
+      if (this.modal || this.mundo?.pausado) return
+      this.minimapa?.alternarModo()
     })
 
     // Giro de dispositivo: re-encuadre de HUD, táctil, pausa y modales.
@@ -247,6 +256,9 @@ export class UiScene extends Phaser.Scene {
       },
       onMinimapaToggle: (activo) => {
         this.minimapa?.setVisible(activo)
+      },
+      onModoMinimapaChange: (modo) => {
+        this.minimapa?.setModo(modo)
       },
     })
   }

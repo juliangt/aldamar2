@@ -96,6 +96,9 @@ export class WorldScene extends Phaser.Scene {
         mapaHeight: mapa.heightInPixels,
         salidas: this.datosSalidas,
         capaObstaculos: this.capaObstaculos,
+        aventuraId: this.aventura,
+        lugarId: this.lugarId,
+        vistos: partida.vistos,
       },
     })
     this.uiAdaptador = this.crearUiAdaptador()
