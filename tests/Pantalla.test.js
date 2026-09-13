@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 import {
   esDispositivoTactil,
+  esDispositivoSinTeclado,
   estaPantallaCompleta,
   alternarPantallaCompleta,
   pedirPantallaCompletaEnPrimerGesto,
@@ -29,6 +30,38 @@ describe('Detección de dispositivo (pantalla.js)', () => {
   it('sin window (SSR/tests) → no táctil y no explota', () => {
     vi.stubGlobal('window', undefined)
     expect(esDispositivoTactil()).toBe(false)
+  })
+
+  it('esDispositivoSinTeclado: pointer coarse (móvil/tablet sin teclado físico) → true', () => {
+    vi.stubGlobal('window', {
+      matchMedia: vi.fn().mockReturnValue({ matches: true }),
+      innerWidth: 480,
+      innerHeight: 270,
+    })
+    expect(esDispositivoSinTeclado()).toBe(true)
+  })
+
+  it('esDispositivoSinTeclado: vista vertical (móvil en mano) → true', () => {
+    vi.stubGlobal('window', {
+      matchMedia: vi.fn().mockReturnValue({ matches: false }),
+      innerWidth: 270,
+      innerHeight: 480,
+    })
+    expect(esDispositivoSinTeclado()).toBe(true)
+  })
+
+  it('esDispositivoSinTeclado: computadora con monitor (pointer fine y horizontal) → false', () => {
+    vi.stubGlobal('window', {
+      matchMedia: vi.fn().mockReturnValue({ matches: false }),
+      innerWidth: 1920,
+      innerHeight: 1080,
+    })
+    expect(esDispositivoSinTeclado()).toBe(false)
+  })
+
+  it('esDispositivoSinTeclado: sin window (SSR) → false', () => {
+    vi.stubGlobal('window', undefined)
+    expect(esDispositivoSinTeclado()).toBe(false)
   })
 })
 

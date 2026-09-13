@@ -155,7 +155,7 @@ test.describe('Aldamar E2E Suite', () => {
     }
   }
 
-  test('controles táctiles visibles y funcionales: dpad mueve y ⏸ pausa', async ({ page }) => {
+  test('controles según dispositivo: dpad solo en móvil/sin teclado, teclado en escritorio, y ⏸ pausa', async ({ page }, testInfo) => {
     await page.goto('/')
     await page.waitForFunction(() => window.__ALDAMAR__?.game?.isBooted)
 
@@ -178,19 +178,58 @@ test.describe('Aldamar E2E Suite', () => {
     // de la vista y sin input en pantallas retina. Ahora deben responder.
     await cerrarModales(page)
 
-    // dpad «derecha»: mantener pulsado y comprobar que el jugador avanza
-    const xAntes = await page.evaluate(
-      () => window.__ALDAMAR__.game.scene.getScene('World').jugador.x
-    )
-    const d = await posBotonTactil(page, 'derecha')
-    await page.mouse.move(d.x, d.y)
-    await page.mouse.down()
-    await page.waitForTimeout(400)
-    const xDurante = await page.evaluate(
-      () => window.__ALDAMAR__.game.scene.getScene('World').jugador.x
-    )
-    await page.mouse.up()
-    expect(xDurante).toBeGreaterThan(xAntes)
+    const isMobile = testInfo.project.name.includes('Mobile')
+    const controlesEstado = await page.evaluate(() => {
+      const mt = window.__ALDAMAR__.game.scene.getScene('Ui').menuTactil
+      return {
+        dpadVisible: mt.dpadVisible,
+        baseVisible: mt.dpadBase.visible,
+        derechaVisible: mt.botones.derecha.zona.visible,
+        accionVisible: mt.accionVisible,
+        accionZonaVisible: mt.accionBtn.zona.visible,
+      }
+    })
+
+    if (isMobile) {
+      // Dispositivo táctil / móvil: dpad y botón de acción visibles
+      expect(controlesEstado.dpadVisible).toBe(true)
+      expect(controlesEstado.baseVisible).toBe(true)
+      expect(controlesEstado.derechaVisible).toBe(true)
+      expect(controlesEstado.accionVisible).toBe(true)
+      expect(controlesEstado.accionZonaVisible).toBe(true)
+
+      // dpad «derecha»: mantener pulsado y comprobar que el jugador avanza
+      const xAntes = await page.evaluate(
+        () => window.__ALDAMAR__.game.scene.getScene('World').jugador.x
+      )
+      const d = await posBotonTactil(page, 'derecha')
+      await page.mouse.move(d.x, d.y)
+      await page.mouse.down()
+      await page.waitForTimeout(400)
+      const xDurante = await page.evaluate(
+        () => window.__ALDAMAR__.game.scene.getScene('World').jugador.x
+      )
+      await page.mouse.up()
+      expect(xDurante).toBeGreaterThan(xAntes)
+    } else {
+      // Computadora con monitor (escritorio): dpad y botón de acción ocultos; movimiento con teclado
+      expect(controlesEstado.dpadVisible).toBe(false)
+      expect(controlesEstado.baseVisible).toBe(false)
+      expect(controlesEstado.derechaVisible).toBe(false)
+      expect(controlesEstado.accionVisible).toBe(false)
+      expect(controlesEstado.accionZonaVisible).toBe(false)
+
+      const xAntes = await page.evaluate(
+        () => window.__ALDAMAR__.game.scene.getScene('World').jugador.x
+      )
+      await page.keyboard.down('KeyD')
+      await page.waitForTimeout(400)
+      const xDurante = await page.evaluate(
+        () => window.__ALDAMAR__.game.scene.getScene('World').jugador.x
+      )
+      await page.keyboard.up('KeyD')
+      expect(xDurante).toBeGreaterThan(xAntes)
+    }
 
     // ⏸: abrir pausa (cerrando antes cualquier diálogo del camino)
     await cerrarModales(page)

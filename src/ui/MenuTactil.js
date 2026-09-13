@@ -11,12 +11,13 @@
 import Phaser from 'phaser'
 import { VISTA } from '../core/resolucion.js'
 import { audio8 } from '../core/Audio8.js'
+import { esDispositivoSinTeclado } from '../core/pantalla.js'
 
 const RADIO = 24
 import { FUENTE } from './tema.js'
 
 export class MenuTactil {
-  constructor(escena, { onAccion, onMenu, onPausa } = {}) {
+  constructor(escena, { onAccion, onMenu, onPausa, mostrarDpad, mostrarControlesTactiles } = {}) {
     this.escena = escena
     this.direccion = { x: 0, y: 0 } // eje actual del d-pad (-1..1)
     this.accion = false
@@ -24,6 +25,10 @@ export class MenuTactil {
     this.onAccion = onAccion || (() => {})
     this.onMenu = onMenu || (() => {})
     this.onPausa = onPausa || (() => {})
+    this.mostrarDpadOpcion = mostrarDpad
+    this.mostrarControlesTactilesOpcion = mostrarControlesTactiles
+    this.visible = true
+    this.bloqueado = false
 
     this.raiz = escena.add.container(0, 0).setDepth(2000)
 
@@ -31,6 +36,77 @@ export class MenuTactil {
     this.crearBotonAccion(VISTA.width - 44, VISTA.height - 44)
     this.crearBotonMenu(VISTA.width - 30, 28)
     this.crearBotonPausa(VISTA.width - 78, 28)
+
+    this.actualizarVisibilidadControles()
+  }
+
+  debeMostrarControlesTactiles() {
+    const opt = this.mostrarControlesTactilesOpcion ?? this.mostrarDpadOpcion
+    if (opt !== undefined) {
+      return typeof opt === 'function' ? opt() : !!opt
+    }
+    return esDispositivoSinTeclado()
+  }
+
+  debeMostrarDpad() {
+    return this.debeMostrarControlesTactiles()
+  }
+
+  debeMostrarAccion() {
+    return this.debeMostrarControlesTactiles()
+  }
+
+  setMostrarDpad(mostrar) {
+    this.mostrarDpadOpcion = mostrar
+    this.mostrarControlesTactilesOpcion = mostrar
+    this.actualizarVisibilidadControles()
+  }
+
+  setMostrarControles(mostrar) {
+    this.setMostrarDpad(mostrar)
+  }
+
+  actualizarVisibilidadDpad() {
+    const visible = this.visible !== false && this.debeMostrarDpad()
+    this.dpadVisible = visible
+    if (this.dpadBase) {
+      this.dpadBase.setVisible(visible)
+    }
+    if (this.botones) {
+      for (const b of Object.values(this.botones)) {
+        b.zona.visible = visible
+        b.gfx.visible = visible
+        if (b.zona.input) {
+          b.zona.input.enabled = visible && !this.bloqueado
+        }
+      }
+    }
+    if (!visible) {
+      this.acciones.clear()
+      this.direccion.x = 0
+      this.direccion.y = 0
+    }
+  }
+
+  actualizarVisibilidadAccion() {
+    const visible = this.visible !== false && this.debeMostrarAccion()
+    this.accionVisible = visible
+    if (this.accionBtn) {
+      this.accionBtn.zona.visible = visible
+      this.accionBtn.circulo.visible = visible
+      this.accionBtn.etiqueta.visible = visible
+      if (this.accionBtn.zona.input) {
+        this.accionBtn.zona.input.enabled = visible && this.habilitado && !this.bloqueado
+      }
+    }
+    if (!visible) {
+      this.accion = false
+    }
+  }
+
+  actualizarVisibilidadControles() {
+    this.actualizarVisibilidadDpad()
+    this.actualizarVisibilidadAccion()
   }
 
   // Re-posiciona todos los controles al cambiar la orientación (270×480
@@ -61,6 +137,7 @@ export class MenuTactil {
     this.btnPausa?.zona.setPosition(width - 78, 28)
     this.btnPausa?.fondo.setPosition(width - 78, 28)
     this.btnPausa?.etiqueta.setPosition(width - 78, 28)
+    this.actualizarVisibilidadControles()
   }
 
   crearDpad(cx, cy) {
@@ -151,13 +228,18 @@ export class MenuTactil {
     this.accionBtn.etiqueta.setFontSize(habilitado && verbo ? '7px' : '12px')
     this.accionBtn.etiqueta.setText(habilitado && verbo ? verbo : 'A')
     this.accionBtn.etiqueta.setAlpha(habilitado ? 1 : 0.4)
-    this.accionBtn.zona.input.enabled = habilitado && !this.bloqueado
+    const accionActiva = this.visible !== false && this.debeMostrarAccion()
+    this.accionBtn.zona.input.enabled = accionActiva && habilitado && !this.bloqueado
   }
 
   setBloqueado(bloqueado) {
     this.bloqueado = bloqueado
-    for (const b of Object.values(this.botones)) b.zona.input.enabled = !bloqueado
-    this.accionBtn.zona.input.enabled = !bloqueado && this.habilitado
+    const dpadActivo = !bloqueado && this.debeMostrarDpad()
+    for (const b of Object.values(this.botones)) {
+      if (b.zona.input) b.zona.input.enabled = dpadActivo
+    }
+    const accionActiva = !bloqueado && this.debeMostrarAccion()
+    this.accionBtn.zona.input.enabled = accionActiva && this.habilitado
     if (this.btnMenu?.zona?.input) this.btnMenu.zona.input.enabled = !bloqueado
     if (this.btnPausa?.zona?.input) this.btnPausa.zona.input.enabled = !bloqueado
     if (bloqueado) {
@@ -165,6 +247,7 @@ export class MenuTactil {
       for (const b of Object.values(this.botones)) b.gfx.setFillStyle(0xffffff, 0.14)
       this.direccion.x = 0
       this.direccion.y = 0
+      this.accion = false
     }
   }
 
@@ -201,14 +284,10 @@ export class MenuTactil {
   }
 
   setVisible(visible) {
+    this.visible = visible
     this.raiz.setVisible(visible)
-    for (const b of Object.values(this.botones)) {
-      b.zona.visible = visible
-      b.gfx.visible = visible
-    }
-    this.accionBtn.zona.visible = visible
-    this.accionBtn.circulo.visible = visible
-    this.accionBtn.etiqueta.visible = visible
+    this.actualizarVisibilidadControles()
+
     if (this.btnMenu) {
       this.btnMenu.zona.visible = visible
       this.btnMenu.fondo.visible = visible
