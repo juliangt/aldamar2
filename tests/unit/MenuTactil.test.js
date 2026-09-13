@@ -20,6 +20,7 @@ describe('MenuTactil Unit Tests', () => {
   let menuTactil
 
   beforeEach(() => {
+    vi.unstubAllGlobals()
     escena = crearMockEscena()
     onAccion = vi.fn()
     onMenu = vi.fn()
@@ -102,5 +103,187 @@ describe('MenuTactil Unit Tests', () => {
     menuTactil.relayout()
     expect(menuTactil.dpadBase.setPosition).toHaveBeenCalled()
     expect(menuTactil.accionBtn.zona.setPosition).toHaveBeenCalled()
+  })
+
+  it('oculta d-pad y deshabilita su input en computadora con monitor (sin touch y horizontal)', () => {
+    vi.stubGlobal('window', {
+      matchMedia: vi.fn().mockReturnValue({ matches: false }),
+      innerWidth: 1920,
+      innerHeight: 1080,
+    })
+    const mt = new MenuTactil(escena, { onAccion, onMenu, onPausa })
+    expect(mt.dpadVisible).toBe(false)
+    expect(mt.dpadBase.visible).toBe(false)
+    for (const b of Object.values(mt.botones)) {
+      expect(b.gfx.visible).toBe(false)
+      expect(b.zona.visible).toBe(false)
+      expect(b.zona.input.enabled).toBe(false)
+    }
+  })
+
+  it('muestra d-pad y habilita input en dispositivo táctil sin teclado (pointer coarse)', () => {
+    vi.stubGlobal('window', {
+      matchMedia: vi.fn().mockReturnValue({ matches: true }),
+      innerWidth: 480,
+      innerHeight: 270,
+    })
+    const mt = new MenuTactil(escena, { onAccion, onMenu, onPausa })
+    expect(mt.dpadVisible).toBe(true)
+    expect(mt.dpadBase.visible).toBe(true)
+    for (const b of Object.values(mt.botones)) {
+      expect(b.gfx.visible).toBe(true)
+      expect(b.zona.visible).toBe(true)
+      expect(b.zona.input.enabled).toBe(true)
+    }
+  })
+
+  it('muestra d-pad en vista vertical (móvil en mano)', () => {
+    vi.stubGlobal('window', {
+      matchMedia: vi.fn().mockReturnValue({ matches: false }),
+      innerWidth: 270,
+      innerHeight: 480,
+    })
+    const mt = new MenuTactil(escena, { onAccion, onMenu, onPausa })
+    expect(mt.dpadVisible).toBe(true)
+    expect(mt.dpadBase.visible).toBe(true)
+  })
+
+  it('setMostrarDpad() alterna dinámicamente la visibilidad e interactividad del d-pad', () => {
+    menuTactil.setMostrarDpad(false)
+    expect(menuTactil.dpadVisible).toBe(false)
+    expect(menuTactil.dpadBase.visible).toBe(false)
+    expect(menuTactil.botones.derecha.zona.input.enabled).toBe(false)
+
+    menuTactil.setMostrarDpad(true)
+    expect(menuTactil.dpadVisible).toBe(true)
+    expect(menuTactil.dpadBase.visible).toBe(true)
+    expect(menuTactil.botones.derecha.zona.input.enabled).toBe(true)
+  })
+
+  it('setVisible(true) en escritorio no re-muestra el d-pad', () => {
+    vi.stubGlobal('window', {
+      matchMedia: vi.fn().mockReturnValue({ matches: false }),
+      innerWidth: 1920,
+      innerHeight: 1080,
+    })
+    const mt = new MenuTactil(escena, { onAccion, onMenu, onPausa })
+    expect(mt.dpadVisible).toBe(false)
+
+    mt.setVisible(false)
+    expect(mt.visible).toBe(false)
+    expect(mt.dpadVisible).toBe(false)
+
+    mt.setVisible(true)
+    expect(mt.visible).toBe(true)
+    expect(mt.dpadVisible).toBe(false)
+    expect(mt.dpadBase.visible).toBe(false)
+    expect(mt.botones.arriba.zona.input.enabled).toBe(false)
+  })
+
+  it('setBloqueado(false) en escritorio no habilita input en zonas del d-pad', () => {
+    vi.stubGlobal('window', {
+      matchMedia: vi.fn().mockReturnValue({ matches: false }),
+      innerWidth: 1920,
+      innerHeight: 1080,
+    })
+    const mt = new MenuTactil(escena, { onAccion, onMenu, onPausa })
+    mt.setBloqueado(true)
+    expect(mt.bloqueado).toBe(true)
+
+    mt.setBloqueado(false)
+    expect(mt.bloqueado).toBe(false)
+    expect(mt.botones.derecha.zona.input.enabled).toBe(false)
+  })
+
+  it('relayout() actualiza visibilidad al cambiar dimensiones de ventana', () => {
+    const win = {
+      matchMedia: vi.fn().mockReturnValue({ matches: false }),
+      innerWidth: 1920,
+      innerHeight: 1080,
+    }
+    vi.stubGlobal('window', win)
+    const mt = new MenuTactil(escena, { onAccion, onMenu, onPausa })
+    expect(mt.dpadVisible).toBe(false)
+    expect(mt.accionVisible).toBe(false)
+
+    // Redimensionar a vertical
+    win.innerWidth = 270
+    win.innerHeight = 480
+    mt.relayout()
+    expect(mt.dpadVisible).toBe(true)
+    expect(mt.dpadBase.visible).toBe(true)
+    expect(mt.accionVisible).toBe(true)
+    expect(mt.accionBtn.zona.visible).toBe(true)
+  })
+
+  it('oculta botón de acción y deshabilita input en computadora con monitor', () => {
+    vi.stubGlobal('window', {
+      matchMedia: vi.fn().mockReturnValue({ matches: false }),
+      innerWidth: 1920,
+      innerHeight: 1080,
+    })
+    const mt = new MenuTactil(escena, { onAccion, onMenu, onPausa })
+    expect(mt.accionVisible).toBe(false)
+    expect(mt.accionBtn.zona.visible).toBe(false)
+    expect(mt.accionBtn.circulo.visible).toBe(false)
+    expect(mt.accionBtn.etiqueta.visible).toBe(false)
+    expect(mt.accionBtn.zona.input.enabled).toBe(false)
+
+    mt.setAccionHabilitada(true, 'Hablar')
+    expect(mt.accionBtn.zona.visible).toBe(false)
+    expect(mt.accionBtn.zona.input.enabled).toBe(false)
+  })
+
+  it('muestra botón de acción y habilita input en dispositivo táctil sin teclado', () => {
+    vi.stubGlobal('window', {
+      matchMedia: vi.fn().mockReturnValue({ matches: true }),
+      innerWidth: 480,
+      innerHeight: 270,
+    })
+    const mt = new MenuTactil(escena, { onAccion, onMenu, onPausa })
+    expect(mt.accionVisible).toBe(true)
+    expect(mt.accionBtn.zona.visible).toBe(true)
+    expect(mt.accionBtn.circulo.visible).toBe(true)
+    expect(mt.accionBtn.etiqueta.visible).toBe(true)
+
+    mt.setAccionHabilitada(true, 'Examinar')
+    expect(mt.accionBtn.zona.input.enabled).toBe(true)
+  })
+
+  it('setVisible(true) en escritorio no re-muestra el botón de acción', () => {
+    vi.stubGlobal('window', {
+      matchMedia: vi.fn().mockReturnValue({ matches: false }),
+      innerWidth: 1920,
+      innerHeight: 1080,
+    })
+    const mt = new MenuTactil(escena, { onAccion, onMenu, onPausa })
+    mt.setAccionHabilitada(true, 'Hablar')
+    expect(mt.accionVisible).toBe(false)
+
+    mt.setVisible(false)
+    expect(mt.visible).toBe(false)
+    expect(mt.accionVisible).toBe(false)
+
+    mt.setVisible(true)
+    expect(mt.visible).toBe(true)
+    expect(mt.accionVisible).toBe(false)
+    expect(mt.accionBtn.zona.visible).toBe(false)
+    expect(mt.accionBtn.zona.input.enabled).toBe(false)
+  })
+
+  it('setBloqueado(false) en escritorio no habilita input en botón de acción', () => {
+    vi.stubGlobal('window', {
+      matchMedia: vi.fn().mockReturnValue({ matches: false }),
+      innerWidth: 1920,
+      innerHeight: 1080,
+    })
+    const mt = new MenuTactil(escena, { onAccion, onMenu, onPausa })
+    mt.setAccionHabilitada(true, 'Hablar')
+    mt.setBloqueado(true)
+    expect(mt.bloqueado).toBe(true)
+
+    mt.setBloqueado(false)
+    expect(mt.bloqueado).toBe(false)
+    expect(mt.accionBtn.zona.input.enabled).toBe(false)
   })
 })

@@ -12,6 +12,17 @@ export function esDispositivoTactil() {
   )
 }
 
+export function esDispositivoSinTeclado() {
+  if (typeof window === 'undefined') return false
+  if (esDispositivoTactil()) return true
+  return (
+    typeof window.innerHeight === 'number' &&
+    typeof window.innerWidth === 'number' &&
+    window.innerHeight > window.innerWidth
+  )
+}
+
+
 export function estaPantallaCompleta() {
   return typeof document !== 'undefined' && !!document.fullscreenElement
 }
