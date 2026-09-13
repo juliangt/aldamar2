@@ -56,6 +56,10 @@ export function crearElemento(props = {}) {
     lineStyle: vi.fn().mockReturnThis(),
     strokeRect: vi.fn().mockReturnThis(),
     strokeLineShape: vi.fn().mockReturnThis(),
+    beginPath: vi.fn().mockReturnThis(),
+    moveTo: vi.fn().mockReturnThis(),
+    lineTo: vi.fn().mockReturnThis(),
+    strokePath: vi.fn().mockReturnThis(),
     on: vi.fn(function (ev, cb) {
       this._handlers = this._handlers || {}
       this._handlers[ev] = cb

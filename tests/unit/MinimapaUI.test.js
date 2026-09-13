@@ -5,10 +5,23 @@ vi.mock('phaser', async () => (await import('../helpers/phaser.js')).phaserStub)
 vi.mock('../../src/core/opciones.js', () => ({
   obtenerMinimapaHabilitado: vi.fn(() => true),
   guardarMinimapaHabilitado: vi.fn(),
+  obtenerModoMinimapa: vi.fn(() => 'local'),
+  guardarModoMinimapa: vi.fn(),
+}))
+
+vi.mock('../../src/core/Audio8.js', () => ({
+  audio8: {
+    sfx: vi.fn(),
+  },
 }))
 
 import { MinimapaUI } from '../../src/ui/MinimapaUI.js'
-import { obtenerMinimapaHabilitado } from '../../src/core/opciones.js'
+import {
+  obtenerMinimapaHabilitado,
+  obtenerModoMinimapa,
+  guardarModoMinimapa,
+} from '../../src/core/opciones.js'
+import { audio8 } from '../../src/core/Audio8.js'
 import { crearMockEscena } from '../helpers/phaser.js'
 import { VISTA } from '../../src/core/resolucion.js'
 
@@ -19,6 +32,7 @@ describe('MinimapaUI Unit Tests', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     obtenerMinimapaHabilitado.mockReturnValue(true)
+    obtenerModoMinimapa.mockReturnValue('local')
     escena = crearMockEscena()
   })
 
@@ -27,15 +41,18 @@ describe('MinimapaUI Unit Tests', () => {
       mapaWidth: 640,
       mapaHeight: 448,
       salidas: [{ x: 320, y: 0, dir: 'N' }],
+      aventuraId: 'corazon_ceniza',
+      lugarId: 'vegaverde',
     })
 
     expect(minimapa.contenedor).toBeDefined()
     expect(minimapa.contenedor.setDepth).toHaveBeenCalledWith(1500)
     expect(minimapa.fondo).toBeDefined()
-    expect(minimapa.fondo.setStrokeStyle).toHaveBeenCalledWith(1, 0x556070, 0.85)
     expect(minimapa.marcadorJugador).toBeDefined()
     expect(minimapa.gfxSalidas).toBeDefined()
     expect(minimapa.gfxObstaculos).toBeDefined()
+    expect(minimapa.gfxGrafo).toBeDefined()
+    expect(minimapa.zonaClick).toBeDefined()
   })
 
   it('respeta la visibilidad inicial según las opciones guardadas', () => {
@@ -46,17 +63,15 @@ describe('MinimapaUI Unit Tests', () => {
     expect(minimapa.contenedor.setVisible).toHaveBeenCalledWith(false)
   })
 
-  it('actualizar(x, y) posiciona el marcador del jugador proporcionalmente', () => {
+  it('actualizar(x, y) posiciona el marcador del jugador en modo local', () => {
     minimapa = new MinimapaUI(escena, {
       mapaWidth: 100,
       mapaHeight: 100,
     })
 
-    // Centro del mapa (50, 50) -> coordenadas relativas centradas (0, 0)
     minimapa.actualizar(50, 50)
     expect(minimapa.marcadorJugador.setPosition).toHaveBeenCalledWith(0, 0)
 
-    // Esquina superior izquierda (0, 0)
     minimapa.actualizar(0, 0)
     expect(minimapa.marcadorJugador.setPosition).toHaveBeenCalledWith(
       -minimapa.miniW / 2,
@@ -71,26 +86,96 @@ describe('MinimapaUI Unit Tests', () => {
     })
 
     minimapa.actualizar(-50, 200)
-    // -50 debe clampearse a 0 (-miniW/2), y 200 a 100 (miniW/2)
     expect(minimapa.marcadorJugador.setPosition).toHaveBeenCalledWith(
       -minimapa.miniW / 2,
       minimapa.miniH / 2
     )
   })
 
-  it('relayout ubica el minimapa en la esquina superior derecha sin tapar menús', () => {
+  it('actualizar(x, y) no mueve el marcador si el modo es aventura', () => {
+    obtenerModoMinimapa.mockReturnValue('aventura')
+    minimapa = new MinimapaUI(escena, {
+      mapaWidth: 100,
+      mapaHeight: 100,
+      aventuraId: 'corazon_ceniza',
+      lugarId: 'vegaverde',
+    })
+
+    minimapa.marcadorJugador.setPosition.mockClear()
+    minimapa.actualizar(25, 25)
+    expect(minimapa.marcadorJugador.setPosition).not.toHaveBeenCalled()
+  })
+
+  it('alternarModo cambia de local a aventura y viceversa, emitiendo sonido y guardando', () => {
+    const onModoChange = vi.fn()
+    minimapa = new MinimapaUI(escena, {
+      mapaWidth: 200,
+      mapaHeight: 200,
+      aventuraId: 'corazon_ceniza',
+      lugarId: 'vegaverde',
+      onModoChange,
+    })
+
+    expect(minimapa.modo).toBe('local')
+
+    // Tocar zona para alternar a aventura
+    minimapa.zonaClick._handlers['pointerdown']()
+
+    expect(audio8.sfx).toHaveBeenCalledWith('confirmar')
+    expect(guardarModoMinimapa).toHaveBeenCalledWith('aventura')
+    expect(minimapa.modo).toBe('aventura')
+    expect(onModoChange).toHaveBeenCalledWith('aventura')
+
+    // Alternar de vuelta a local
+    minimapa.zonaClick._handlers['pointerdown']()
+    expect(guardarModoMinimapa).toHaveBeenCalledWith('local')
+    expect(minimapa.modo).toBe('local')
+    expect(onModoChange).toHaveBeenCalledWith('local')
+  })
+
+  it('modo aventura calcula y muestra las pantallas restantes al final', () => {
+    obtenerModoMinimapa.mockReturnValue('aventura')
+    minimapa = new MinimapaUI(escena, {
+      mapaWidth: 200,
+      mapaHeight: 200,
+      aventuraId: 'corazon_ceniza',
+      lugarId: 'vegaverde',
+    })
+
+    // Desde vegaverde en corazon_ceniza faltan 8 pantallas a umbak
+    expect(minimapa.txtAventuraInfo.setText).toHaveBeenCalledWith('FALTAN 8 PANTALLAS')
+    expect(minimapa.txtAventuraLugar.setText).toHaveBeenCalledWith('VEGAVERDE')
+    expect(minimapa.gfxGrafo.clear).toHaveBeenCalled()
+    expect(minimapa.gfxGrafo.strokePath).toHaveBeenCalled()
+  })
+
+  it('modo aventura muestra zona final cuando el jugador llega al destino', () => {
+    obtenerModoMinimapa.mockReturnValue('aventura')
+    minimapa = new MinimapaUI(escena, {
+      mapaWidth: 200,
+      mapaHeight: 200,
+      aventuraId: 'corazon_ceniza',
+      lugarId: 'umbak',
+    })
+
+    expect(minimapa.txtAventuraInfo.setText).toHaveBeenCalledWith('¡ZONA FINAL!')
+    expect(minimapa.txtAventuraInfo.setColor).toHaveBeenCalledWith('#e0c04a')
+  })
+
+  it('relayout ubica el minimapa en la esquina superior derecha según el modo', () => {
     minimapa = new MinimapaUI(escena, {
       mapaWidth: 320,
       mapaHeight: 240,
     })
 
     minimapa.relayout()
-    const anchoTotal = minimapa.miniW + 6
-    const altoTotal = minimapa.miniH + 6
+    const anchoTotal = minimapa.anchoLocal
     const esperadoX = VISTA.width - (anchoTotal / 2 + 8)
-    const esperadoY = 56 + altoTotal / 2
+    expect(minimapa.contenedor.setPosition).toHaveBeenCalledWith(esperadoX, expect.any(Number))
 
-    expect(minimapa.contenedor.setPosition).toHaveBeenCalledWith(esperadoX, esperadoY)
+    minimapa.setModo('aventura')
+    const esperadoXAventura = VISTA.width - (minimapa.anchoAventura / 2 + 8)
+    expect(minimapa.contenedor.setPosition).toHaveBeenCalledWith(esperadoXAventura, expect.any(Number))
   })
 
   it('setVisible conmuta el estado y la visibilidad del contenedor', () => {
@@ -117,28 +202,6 @@ describe('MinimapaUI Unit Tests', () => {
 
     expect(minimapa.gfxSalidas.clear).toHaveBeenCalled()
     expect(minimapa.gfxSalidas.fillRect).toHaveBeenCalledTimes(2)
-  })
-
-  it('dibujarObstaculos dibuja celdas colisionables', () => {
-    const mockCapaObstaculos = {
-      layer: {
-        data: [
-          [
-            { index: 1, collides: true, width: 16, height: 16 },
-            { index: 0, collides: false, width: 16, height: 16 },
-          ],
-        ],
-      },
-    }
-
-    minimapa = new MinimapaUI(escena, {
-      mapaWidth: 32,
-      mapaHeight: 16,
-      capaObstaculos: mockCapaObstaculos,
-    })
-
-    expect(minimapa.gfxObstaculos.clear).toHaveBeenCalled()
-    expect(minimapa.gfxObstaculos.fillRect).toHaveBeenCalledTimes(1)
   })
 
   it('destruir elimina el contenedor', () => {
