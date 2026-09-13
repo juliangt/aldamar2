@@ -74,5 +74,33 @@ describe('aventuraGrafo Unit Tests', () => {
       const conexionEnCamino = grafo.conexiones.some((c) => c.enCaminoFinal)
       expect(conexionEnCamino).toBe(true)
     })
+
+    it('ubica los nodos según su orientación geográfica cardinal real', () => {
+      const grafo = calcularGrafoAventura('corazon_ceniza', 'puente')
+      const p = grafo.nodosPorId['puente']
+      const bosque = grafo.nodosPorId['bosque']
+      const rioclaro = grafo.nodosPorId['rioclaro']
+      const molino = grafo.nodosPorId['molino']
+      const umbak = grafo.nodosPorId['umbak']
+
+      // Bosque está al norte de Puente (Y menor)
+      expect(bosque.coordY).toBeLessThan(p.coordY)
+      expect(bosque.normY).toBeLessThan(p.normY)
+
+      // Ríoclaro está al sur de Puente (Y mayor)
+      expect(rioclaro.coordY).toBeGreaterThan(p.coordY)
+      expect(rioclaro.normY).toBeGreaterThan(p.normY)
+
+      // Molino está al oeste de Puente (X menor)
+      expect(molino.coordX).toBeLessThan(p.coordX)
+
+      // Umbak está al este extremo de la aventura
+      expect(umbak.normX).toBe(0.5)
+
+      // Bounding box calculado
+      expect(grafo.bounds).toBeDefined()
+      expect(grafo.bounds.spanX).toBe(7)
+      expect(grafo.bounds.spanY).toBe(3)
+    })
   })
 })

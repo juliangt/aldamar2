@@ -59,6 +59,13 @@ export function distanciaAlFinal(aventuraId, lugarActual) {
   return camino.length - 1
 }
 
+const DIRS_CARDINALES = {
+  norte: [0, -1],
+  sur: [0, 1],
+  este: [1, 0],
+  oeste: [-1, 0],
+}
+
 export function calcularGrafoAventura(aventuraId, lugarActual = null, vistos = {}) {
   const av = obtenerAventuraSegura(aventuraId)
   if (!av || !av.lugares) return null
@@ -68,68 +75,91 @@ export function calcularGrafoAventura(aventuraId, lugarActual = null, vistos = {
   const inicioId = av.lugar_inicial || keys[0]
   const caminoOptimo = new Set(lugarActual ? caminoAlFinal(aventuraId, lugarActual) : [])
 
-  // 1. Asignar nivel topológico mediante BFS desde el inicio
-  const niveles = { [inicioId]: 0 }
-  const cola = [inicioId]
-  while (cola.length > 0) {
-    const act = cola.shift()
+  // 1. Asignar coordenadas cartesianas 2D siguiendo las salidas cardinales reales
+  const coords = { [inicioId]: { x: 0, y: 0 } }
+  const colaCoords = [inicioId]
+
+  while (colaCoords.length > 0) {
+    const act = colaCoords.shift()
+    const c = coords[act]
     const d = av.lugares[act]
     if (!d) continue
-    const dests = [...new Set(Object.values(d.salidas || {}))]
-    for (const dest of dests) {
-      if (niveles[dest] === undefined) {
-        niveles[dest] = niveles[act] + 1
-        cola.push(dest)
+    const s = d.salidas || {}
+    for (const [dir, dest] of Object.entries(s)) {
+      if (DIRS_CARDINALES[dir] && av.lugares[dest]) {
+        if (!coords[dest]) {
+          const [dx, dy] = DIRS_CARDINALES[dir]
+          coords[dest] = { x: c.x + dx, y: c.y + dy }
+          colaCoords.push(dest)
+        }
       }
     }
   }
 
-  // Si algún lugar quedó desconectado del inicio, darle nivel basado en su índice
-  for (let i = 0; i < keys.length; i++) {
-    const k = keys[i]
-    if (niveles[k] === undefined) niveles[k] = i
+  // Fallback si algún nodo no tuvo dirección cardinal explícita
+  const faltantes = keys.filter((k) => !coords[k])
+  if (faltantes.length > 0) {
+    const colaGeneral = [inicioId]
+    const visitados = new Set([inicioId])
+    while (colaGeneral.length > 0) {
+      const act = colaGeneral.shift()
+      const c = coords[act] || { x: 0, y: 0 }
+      const d = av.lugares[act]
+      if (!d) continue
+      const dests = [...new Set(Object.values(d.salidas || {}))]
+      let step = 1
+      for (const dest of dests) {
+        if (!visitados.has(dest)) {
+          visitados.add(dest)
+          if (!coords[dest]) {
+            coords[dest] = { x: c.x + step++, y: c.y }
+          }
+          colaGeneral.push(dest)
+        }
+      }
+    }
+    let fx = 0
+    for (const k of keys) {
+      if (!coords[k]) coords[k] = { x: fx++, y: 0 }
+    }
   }
 
-  const maxNivel = Math.max(1, ...Object.values(niveles))
+  // 2. Bounding box y normalización centrada (-0.5 .. 0.5)
+  const xs = keys.map((k) => coords[k].x)
+  const ys = keys.map((k) => coords[k].y)
+  const minX = Math.min(...xs)
+  const maxX = Math.max(...xs)
+  const minY = Math.min(...ys)
+  const maxY = Math.max(...ys)
+  const spanX = Math.max(1, maxX - minX)
+  const spanY = Math.max(1, maxY - minY)
 
-  // 2. Agrupar por nivel para calcular posición vertical
-  const porNivel = {}
-  for (const id of keys) {
-    const n = niveles[id]
-    if (!porNivel[n]) porNivel[n] = []
-    porNivel[n].push(id)
-  }
-
-  // 3. Crear nodos con coordenadas relativas normalizadas (-0.5 .. 0.5)
+  // 3. Crear lista de nodos con posiciones geográficas normalizadas
   const nodos = {}
   const listaNodos = []
 
-  for (const [nStr, ids] of Object.entries(porNivel)) {
-    const n = Number(nStr)
-    const normX = n / maxNivel - 0.5 // Rango: -0.5 a +0.5
-    const totalEnNivel = ids.length
+  for (const id of keys) {
+    const dato = av.lugares[id]
+    const pt = coords[id]
+    const normX = spanX > 0 ? (pt.x - (minX + maxX) / 2) / spanX : 0
+    const normY = spanY > 0 ? (pt.y - (minY + maxY) / 2) / spanY : 0
 
-    for (let idx = 0; idx < totalEnNivel; idx++) {
-      const id = ids[idx]
-      const dato = av.lugares[id]
-      // Centrar verticalmente en nivel
-      const normY = totalEnNivel === 1 ? 0 : (idx / (totalEnNivel - 1) - 0.5) * 0.7
-
-      const nodo = {
-        id,
-        nombre: dato.nombre || id,
-        nombreCorto: dato.nombre_corto || id,
-        normX,
-        normY,
-        esActual: id === lugarActual,
-        esFinal: id === finalId,
-        visitado: !!vistos[id] || id === lugarActual,
-        enCaminoFinal: caminoOptimo.has(id),
-      }
-
-      nodos[id] = nodo
-      listaNodos.push(nodo)
+    const nodo = {
+      id,
+      nombre: dato.nombre || id,
+      nombreCorto: dato.nombre_corto || id,
+      coordX: pt.x,
+      coordY: pt.y,
+      normX,
+      normY,
+      esActual: id === lugarActual,
+      esFinal: id === finalId,
+      visitado: !!vistos[id] || id === lugarActual,
+      enCaminoFinal: caminoOptimo.has(id),
     }
+
+    nodos[id] = nodo
+    listaNodos.push(nodo)
   }
 
   // 4. Crear conexiones únicas
@@ -162,6 +192,7 @@ export function calcularGrafoAventura(aventuraId, lugarActual = null, vistos = {
     actualId: lugarActual,
     distancia: lugarActual ? distanciaAlFinal(aventuraId, lugarActual) : null,
     totalLugares: keys.length,
+    bounds: { minX, maxX, minY, maxY, spanX, spanY },
     nodos: listaNodos,
     nodosPorId: nodos,
     conexiones,

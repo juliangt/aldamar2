@@ -83,6 +83,14 @@ export class MinimapaUI {
 
     // 3. Elementos específicos de Modo Aventura
     this.gfxGrafo = add.graphics()
+    this.txtBrujula = add
+      .text(-this.anchoAventura / 2 + 7, -this.altoAventura / 2 + 7, '▲N', {
+        fontFamily: FUENTE,
+        fontSize: '4px',
+        color: '#c8a860',
+      })
+      .setOrigin(0, 0.5)
+
     this.txtAventuraLugar = add
       .text(0, -this.altoAventura / 2 + 7, '', {
         fontFamily: FUENTE,
@@ -99,7 +107,12 @@ export class MinimapaUI {
       })
       .setOrigin(0.5)
 
-    this.contenedor.add([this.gfxGrafo, this.txtAventuraLugar, this.txtAventuraInfo])
+    this.contenedor.add([
+      this.gfxGrafo,
+      this.txtBrujula,
+      this.txtAventuraLugar,
+      this.txtAventuraInfo,
+    ])
 
     // 4. Etiqueta indicadora de modo (clickable hint)
     this.txtTagModo = add
@@ -157,6 +170,14 @@ export class MinimapaUI {
     this.fondo.setSize(w, h)
     this.zonaClick.setSize(w, h)
 
+    if (esLocal) {
+      this.fondo.setFillStyle(0x0c1017, 0.75)
+      this.fondo.setStrokeStyle(1, 0x556070, 0.85)
+    } else {
+      this.fondo.setFillStyle(0x14100c, 0.88)
+      this.fondo.setStrokeStyle(1, 0x9c7f50, 0.9)
+    }
+
     // Visibilidad por modo
     this.gfxObstaculos.setVisible(esLocal)
     this.gfxSalidas.setVisible(esLocal)
@@ -165,12 +186,15 @@ export class MinimapaUI {
     this.gfxGrafo.setVisible(!esLocal)
     this.txtAventuraLugar.setVisible(!esLocal)
     this.txtAventuraInfo.setVisible(!esLocal)
+    this.txtBrujula?.setVisible(!esLocal)
 
     if (esLocal) {
       this.txtTagModo.setText('SALA')
+      this.txtTagModo.setColor('#7088a8')
       this.txtTagModo.setPosition(0, -this.altoLocal / 2 + 5)
     } else {
       this.txtTagModo.setText('AVENTURA')
+      this.txtTagModo.setColor('#b89d6e')
       this.txtTagModo.setPosition(0, -this.altoAventura / 2 + 7)
       this.txtAventuraLugar.setPosition(0, -this.altoAventura / 2 + 16)
       this.dibujarGrafoAventura()
@@ -202,58 +226,138 @@ export class MinimapaUI {
       this.txtAventuraInfo.setText('')
     }
 
-    // Área del grafo dentro de la caja de aventura (centrado verticalmente)
-    const anchoGrafo = this.anchoAventura - 20
-    const altoGrafo = 22
+    // Marco cartográfico interior (doble línea pergamino y esquineros de bronce)
+    const mitadW = this.anchoAventura / 2
+    const mitadH = this.altoAventura / 2
+    this.gfxGrafo.lineStyle(1, 0x4a3b27, 0.45)
+    this.gfxGrafo.strokeRect(-mitadW + 2, -mitadH + 2, this.anchoAventura - 4, this.altoAventura - 4)
+
+    this.gfxGrafo.fillStyle(0x8a704a, 0.6)
+    this.gfxGrafo.fillRect(-mitadW + 3, -mitadH + 3, 2, 2)
+    this.gfxGrafo.fillRect(mitadW - 5, -mitadH + 3, 2, 2)
+    this.gfxGrafo.fillRect(-mitadW + 3, mitadH - 5, 2, 2)
+    this.gfxGrafo.fillRect(mitadW - 5, mitadH - 5, 2, 2)
+
+    // Área geográfica cartográfica escalada preservando forma regional
+    const areaW = this.anchoAventura - 22
+    const areaH = 26
     const centroY = 2
 
-    // 1. Dibujar conexiones
-    for (const con of grafo.conexiones) {
-      const x1 = con.desde.normX * anchoGrafo
-      const y1 = centroY + con.desde.normY * altoGrafo
-      const x2 = con.hacia.normX * anchoGrafo
-      const y2 = centroY + con.hacia.normY * altoGrafo
+    const { spanX = 1, spanY = 1 } = grafo.bounds || {}
+    const aspectGeo = (spanX * 1.15) / Math.max(1, spanY)
+    const aspectArea = areaW / areaH
 
-      if (con.enCaminoFinal) {
-        this.gfxGrafo.lineStyle(1, 0xe0c04a, 0.95)
-      } else {
-        this.gfxGrafo.lineStyle(1, 0x303d4e, 0.7)
-      }
-
-      this.gfxGrafo.beginPath()
-      this.gfxGrafo.moveTo(x1, y1)
-      this.gfxGrafo.lineTo(x2, y2)
-      this.gfxGrafo.strokePath()
+    let mapaW = areaW
+    let mapaH = areaH
+    if (aspectGeo > aspectArea) {
+      mapaH = Math.max(16, Math.min(areaH, Math.round(areaW / aspectGeo)))
+    } else {
+      mapaW = Math.max(24, Math.min(areaW, Math.round(areaH * aspectGeo)))
     }
 
-    // 2. Dibujar nodos
+    // 1. Dibujar senderos y rutas entre regiones
+    for (const con of grafo.conexiones) {
+      const x1 = Math.round(con.desde.normX * mapaW)
+      const y1 = Math.round(centroY + con.desde.normY * mapaH)
+      const x2 = Math.round(con.hacia.normX * mapaW)
+      const y2 = Math.round(centroY + con.hacia.normY * mapaH)
+
+      if (con.enCaminoFinal) {
+        // Sendero dorado iluminado hacia el destino
+        this.gfxGrafo.lineStyle(1.5, 0xdfa838, 0.95)
+        this.gfxGrafo.beginPath()
+        this.gfxGrafo.moveTo(x1, y1)
+        this.gfxGrafo.lineTo(x2, y2)
+        this.gfxGrafo.strokePath()
+
+        // Hitos de sendero dorado
+        const dx = x2 - x1
+        const dy = y2 - y1
+        const dist = Math.hypot(dx, dy)
+        if (dist > 6) {
+          const pasos = Math.max(2, Math.floor(dist / 6))
+          this.gfxGrafo.fillStyle(0xffe680, 0.9)
+          for (let p = 1; p < pasos; p++) {
+            const t = p / pasos
+            this.gfxGrafo.fillRect(Math.round(x1 + dx * t) - 0.5, Math.round(y1 + dy * t) - 0.5, 1.5, 1.5)
+          }
+        }
+      } else {
+        // Sendero cartográfico punteado estándar en tinta tierra
+        this.gfxGrafo.lineStyle(1, 0x483828, 0.65)
+        this.gfxGrafo.beginPath()
+        this.gfxGrafo.moveTo(x1, y1)
+        this.gfxGrafo.lineTo(x2, y2)
+        this.gfxGrafo.strokePath()
+
+        // Puntos de senda
+        const dx = x2 - x1
+        const dy = y2 - y1
+        const dist = Math.hypot(dx, dy)
+        if (dist > 8) {
+          const pasos = Math.max(2, Math.floor(dist / 7))
+          this.gfxGrafo.fillStyle(0x6a543c, 0.7)
+          for (let p = 1; p < pasos; p++) {
+            const t = p / pasos
+            this.gfxGrafo.fillRect(Math.round(x1 + dx * t) - 0.5, Math.round(y1 + dy * t) - 0.5, 1, 1)
+          }
+        }
+      }
+    }
+
+    // 2. Dibujar hitos cartográficos / lugares
     for (const nodo of grafo.nodos) {
-      const nx = nodo.normX * anchoGrafo
-      const ny = centroY + nodo.normY * altoGrafo
+      const nx = Math.round(nodo.normX * mapaW)
+      const ny = Math.round(centroY + nodo.normY * mapaH)
 
       if (nodo.esActual) {
-        // Jugador actual: verde brillante 5×5
-        this.gfxGrafo.fillStyle(0x55ff55, 1)
-        this.gfxGrafo.fillRect(nx - 2.5, ny - 2.5, 5, 5)
+        // Hito del viajero (posición actual): rombo verde esmeralda con halo
+        this.gfxGrafo.lineStyle(1, 0x228833, 0.45)
+        this.gfxGrafo.strokeRect(nx - 3.5, ny - 3.5, 7, 7)
+
+        this.gfxGrafo.fillStyle(0x44ee66, 1)
+        this.gfxGrafo.beginPath()
+        this.gfxGrafo.moveTo(nx, ny - 3.5)
+        this.gfxGrafo.lineTo(nx + 3.5, ny)
+        this.gfxGrafo.lineTo(nx, ny + 3.5)
+        this.gfxGrafo.lineTo(nx - 3.5, ny)
+        this.gfxGrafo.closePath()
+        this.gfxGrafo.fillPath()
+
         this.gfxGrafo.lineStyle(1, 0xffffff, 1)
-        this.gfxGrafo.strokeRect(nx - 2.5, ny - 2.5, 5, 5)
+        this.gfxGrafo.strokePath()
+
+        // Destello central
+        this.gfxGrafo.fillStyle(0xffffff, 1)
+        this.gfxGrafo.fillRect(nx - 0.5, ny - 0.5, 1.5, 1.5)
       } else if (nodo.esFinal) {
-        // Pantalla final: oro/ámbar 5×5
+        // Ciudadela / Fortaleza final: almenas doradas
         this.gfxGrafo.fillStyle(0xffaa22, 1)
-        this.gfxGrafo.fillRect(nx - 2.5, ny - 2.5, 5, 5)
-        this.gfxGrafo.lineStyle(1, 0xffe080, 1)
-        this.gfxGrafo.strokeRect(nx - 2.5, ny - 2.5, 5, 5)
+        this.gfxGrafo.fillRect(nx - 3, ny - 1.5, 6, 4)
+        this.gfxGrafo.fillRect(nx - 3, ny - 3.5, 1.5, 2)
+        this.gfxGrafo.fillRect(nx - 1, ny - 4.5, 2, 3)
+        this.gfxGrafo.fillRect(nx + 1.5, ny - 3.5, 1.5, 2)
+
+        this.gfxGrafo.lineStyle(1, 0xffe880, 1)
+        this.gfxGrafo.strokeRect(nx - 3, ny - 1.5, 6, 4)
+
+        // Cúspide
+        this.gfxGrafo.fillStyle(0xffffff, 1)
+        this.gfxGrafo.fillRect(nx - 0.5, ny - 5, 1, 1)
       } else if (nodo.visitado) {
-        // Pantalla visitada: azul/gris acero 4×4
-        this.gfxGrafo.fillStyle(0x506888, 0.9)
+        // Asentamiento visitado / cartografiado: sello de pergamino con borde de tinta
+        this.gfxGrafo.fillStyle(0x604e38, 0.95)
         this.gfxGrafo.fillRect(nx - 2, ny - 2, 4, 4)
-        this.gfxGrafo.lineStyle(1, 0x7590b0, 0.9)
+        this.gfxGrafo.lineStyle(1, 0xbfa372, 0.9)
         this.gfxGrafo.strokeRect(nx - 2, ny - 2, 4, 4)
+
+        this.gfxGrafo.fillStyle(0xd5be94, 0.9)
+        this.gfxGrafo.fillRect(nx - 0.5, ny - 0.5, 1, 1)
       } else {
-        // Pantalla aún no visitada: hueca 3×3
-        this.gfxGrafo.fillStyle(0x1a222e, 0.8)
+        // Territorio ignoto / rumor: marca cartográfica tenue
+        this.gfxGrafo.fillStyle(0x221a14, 0.85)
         this.gfxGrafo.fillRect(nx - 1.5, ny - 1.5, 3, 3)
-        this.gfxGrafo.lineStyle(1, 0x3d4f66, 0.8)
+        this.gfxGrafo.lineStyle(1, 0x5a4835, 0.75)
         this.gfxGrafo.strokeRect(nx - 1.5, ny - 1.5, 3, 3)
       }
     }

@@ -146,6 +146,9 @@ describe('MinimapaUI Unit Tests', () => {
     expect(minimapa.txtAventuraLugar.setText).toHaveBeenCalledWith('VEGAVERDE')
     expect(minimapa.gfxGrafo.clear).toHaveBeenCalled()
     expect(minimapa.gfxGrafo.strokePath).toHaveBeenCalled()
+    expect(minimapa.gfxGrafo.fillPath).toHaveBeenCalled()
+    expect(minimapa.txtBrujula.setVisible).toHaveBeenCalledWith(true)
+    expect(minimapa.fondo.setFillStyle).toHaveBeenCalledWith(0x14100c, 0.88)
   })
 
   it('modo aventura muestra zona final cuando el jugador llega al destino', () => {
@@ -159,6 +162,22 @@ describe('MinimapaUI Unit Tests', () => {
 
     expect(minimapa.txtAventuraInfo.setText).toHaveBeenCalledWith('¡ZONA FINAL!')
     expect(minimapa.txtAventuraInfo.setColor).toHaveBeenCalledWith('#e0c04a')
+  })
+
+  it('alternar a modo local oculta la brújula y restaura el fondo táctico', () => {
+    minimapa = new MinimapaUI(escena, {
+      mapaWidth: 200,
+      mapaHeight: 200,
+      aventuraId: 'corazon_ceniza',
+      lugarId: 'vegaverde',
+    })
+
+    minimapa.setModo('aventura')
+    expect(minimapa.txtBrujula.setVisible).toHaveBeenCalledWith(true)
+
+    minimapa.setModo('local')
+    expect(minimapa.txtBrujula.setVisible).toHaveBeenCalledWith(false)
+    expect(minimapa.fondo.setFillStyle).toHaveBeenCalledWith(0x0c1017, 0.75)
   })
 
   it('relayout ubica el minimapa en la esquina superior derecha según el modo', () => {
