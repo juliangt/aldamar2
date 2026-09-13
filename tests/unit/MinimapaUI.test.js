@@ -133,7 +133,7 @@ describe('MinimapaUI Unit Tests', () => {
     expect(onModoChange).toHaveBeenCalledWith('local')
   })
 
-  it('modo aventura calcula y muestra las pantallas restantes al final', () => {
+  it('modo aventura muestra el grafo de la aventura y el destino final', () => {
     obtenerModoMinimapa.mockReturnValue('aventura')
     minimapa = new MinimapaUI(escena, {
       mapaWidth: 200,
@@ -142,8 +142,7 @@ describe('MinimapaUI Unit Tests', () => {
       lugarId: 'vegaverde',
     })
 
-    // Desde vegaverde en corazon_ceniza faltan 8 pantallas a umbak
-    expect(minimapa.txtAventuraInfo.setText).toHaveBeenCalledWith('FALTAN 8 PANTALLAS')
+    expect(minimapa.txtAventuraInfo.setText).toHaveBeenCalledWith('DESTINO: UMBAK')
     expect(minimapa.txtAventuraLugar.setText).toHaveBeenCalledWith('VEGAVERDE')
     expect(minimapa.gfxGrafo.clear).toHaveBeenCalled()
     expect(minimapa.gfxGrafo.strokePath).toHaveBeenCalled()

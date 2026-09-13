@@ -189,18 +189,17 @@ export class MinimapaUI {
     const nombreLugar = nodoActual ? nodoActual.nombreCorto : this.lugarId || ''
     this.txtAventuraLugar.setText(nombreLugar.toUpperCase())
 
-    // Contador de pantallas restantes
-    const dist = grafo.distancia
-    if (dist === 0) {
+    // Información del destino final (sin texto de "faltan x pantallas")
+    const nodoFinal = grafo.nodosPorId[grafo.finalId]
+    const nombreFinal = nodoFinal ? nodoFinal.nombreCorto : grafo.finalId || ''
+    if (this.lugarId === grafo.finalId) {
       this.txtAventuraInfo.setText('¡ZONA FINAL!')
       this.txtAventuraInfo.setColor('#e0c04a')
-    } else if (dist !== null) {
-      const texto = `FALTAN ${dist} ${dist === 1 ? 'PANTALLA' : 'PANTALLAS'}`
-      this.txtAventuraInfo.setText(texto)
-      this.txtAventuraInfo.setColor('#9ad09a')
+    } else if (nombreFinal) {
+      this.txtAventuraInfo.setText(`DESTINO: ${nombreFinal.toUpperCase()}`)
+      this.txtAventuraInfo.setColor('#e0c04a')
     } else {
-      this.txtAventuraInfo.setText(`${grafo.totalLugares} PANTALLAS`)
-      this.txtAventuraInfo.setColor('#e8e8e8')
+      this.txtAventuraInfo.setText('')
     }
 
     // Área del grafo dentro de la caja de aventura (centrado verticalmente)
