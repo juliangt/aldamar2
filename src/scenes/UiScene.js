@@ -12,6 +12,7 @@ import SelectorOpciones from '../ui/SelectorOpciones.js'
 import InventarioUI from '../ui/InventarioUI.js'
 import TiendaUI from '../ui/TiendaUI.js'
 import PausaUI from '../ui/PausaUI.js'
+import MinimapaUI from '../ui/MinimapaUI.js'
 import { salirDelMundo } from './navegacion.js'
 import { VISTA, aplicarRes, alRelayout } from '../core/resolucion.js'
 import { audio8 } from '../core/Audio8.js'
@@ -23,8 +24,9 @@ export class UiScene extends Phaser.Scene {
     super('Ui')
   }
 
-  init(data) {
+  init(data = {}) {
     this.nombreLugar = data.nombre || ''
+    this.mapaInfo = data.mapaInfo || null
     this.modal = false
   }
 
@@ -35,6 +37,12 @@ export class UiScene extends Phaser.Scene {
 
     this.crearHud()
     this.crearBanner(this.nombreLugar)
+    if (this.mapaInfo) {
+      this.minimapa = new MinimapaUI(this, {
+        ...this.mapaInfo,
+        onModoChange: () => this.pausa?.actualizarTextos(),
+      })
+    }
     this.crearPausa()
 
     this.dialogo = new DialogBox(this)
@@ -72,6 +80,12 @@ export class UiScene extends Phaser.Scene {
       this.mundo && this.mundo.alternarPausa()
     })
 
+    // Tecla M para alternar vista del minimapa (local / aventura)
+    this.input.keyboard.on('keydown-M', () => {
+      if (this.modal || this.mundo?.pausado) return
+      this.minimapa?.alternarModo()
+    })
+
     // Giro de dispositivo: re-encuadre de HUD, táctil, pausa y modales.
     alRelayout(this, () => this.relayout())
   }
@@ -84,6 +98,7 @@ export class UiScene extends Phaser.Scene {
     this.selector?.relayout()
     this.inventario?.relayout()
     this.tienda?.relayout()
+    this.minimapa?.relayout()
     this.relayoutPausa()
   }
 
@@ -239,7 +254,17 @@ export class UiScene extends Phaser.Scene {
         audio8.detenerAmbiente(false)
         salirDelMundo(this, 'Menu')
       },
+      onMinimapaToggle: (activo) => {
+        this.minimapa?.setVisible(activo)
+      },
+      onModoMinimapaChange: (modo) => {
+        this.minimapa?.setModo(modo)
+      },
     })
+  }
+
+  actualizarMinimapa(x, y) {
+    this.minimapa?.actualizar(x, y)
   }
 
   // Encuadre del panel de pausa contra la vista actual.

@@ -89,7 +89,18 @@ export class WorldScene extends Phaser.Scene {
 
     // Interfaz en paralelo (HUD, banner, táctil, pausa).
     this.ui = this.scene.get('Ui')
-    this.scene.launch('Ui', { nombre: lugar.nombre })
+    this.scene.launch('Ui', {
+      nombre: lugar.nombre,
+      mapaInfo: {
+        mapaWidth: mapa.widthInPixels,
+        mapaHeight: mapa.heightInPixels,
+        salidas: this.datosSalidas,
+        capaObstaculos: this.capaObstaculos,
+        aventuraId: this.aventura,
+        lugarId: this.lugarId,
+        vistos: partida.vistos,
+      },
+    })
     this.uiAdaptador = this.crearUiAdaptador()
 
     cam.once('camerafadeincomplete', () => this.iniciarLugar())
@@ -645,6 +656,10 @@ export class WorldScene extends Phaser.Scene {
         : `${tex}-${this.animDe(this.mirando)}-parado`,
       true
     )
+
+    if (this.jugador && this.ui?.actualizarMinimapa) {
+      this.ui.actualizarMinimapa(this.jugador.x, this.jugador.y)
+    }
   }
 
   animDe(mirando) {

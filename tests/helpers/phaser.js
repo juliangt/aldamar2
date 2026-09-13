@@ -34,7 +34,11 @@ export function crearElemento(props = {}) {
     setPosition: vi.fn().mockReturnThis(),
     setSize: vi.fn().mockReturnThis(),
     setDepth: vi.fn().mockReturnThis(),
-    setVisible: vi.fn().mockReturnThis(),
+    visible: true,
+    setVisible: vi.fn(function (v) {
+      this.visible = v
+      return this
+    }),
     setStrokeStyle: vi.fn().mockReturnThis(),
     setFillStyle: vi.fn().mockReturnThis(),
     setScrollFactor: vi.fn().mockReturnThis(),
@@ -46,6 +50,20 @@ export function crearElemento(props = {}) {
     setStyle: vi.fn().mockReturnThis(),
     setInteractive: vi.fn().mockReturnThis(),
     disableInteractive: vi.fn().mockReturnThis(),
+    clear: vi.fn().mockReturnThis(),
+    fillStyle: vi.fn().mockReturnThis(),
+    fillRect: vi.fn().mockReturnThis(),
+    lineStyle: vi.fn().mockReturnThis(),
+    strokeRect: vi.fn().mockReturnThis(),
+    strokeLineShape: vi.fn().mockReturnThis(),
+    beginPath: vi.fn().mockReturnThis(),
+    moveTo: vi.fn().mockReturnThis(),
+    lineTo: vi.fn().mockReturnThis(),
+    closePath: vi.fn().mockReturnThis(),
+    fillPath: vi.fn().mockReturnThis(),
+    fillCircle: vi.fn().mockReturnThis(),
+    strokeCircle: vi.fn().mockReturnThis(),
+    strokePath: vi.fn().mockReturnThis(),
     on: vi.fn(function (ev, cb) {
       this._handlers = this._handlers || {}
       this._handlers[ev] = cb
@@ -79,6 +97,7 @@ export function crearMockEscena() {
       rectangle: vi.fn(elemento),
       circle: vi.fn(elemento),
       text: vi.fn(elemento),
+      graphics: vi.fn(elemento),
     },
     events: {
       on: vi.fn(),
